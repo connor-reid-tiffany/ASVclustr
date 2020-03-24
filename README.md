@@ -5,5 +5,5 @@ abundance over time.). This is useful for modeling applications where dimensiona
 It can also compare population dynamics of amplicon sequencing variants between experimental groups.
 
 
-![ASVclustr](ASVclustr.png)
+![ASVclustr](ASVclustr.png){:height="75%" width="75%"}
 
