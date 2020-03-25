@@ -2,7 +2,7 @@
 % Please edit documentation in R/Utility_Functions.R
 \name{remove_samples}
 \alias{remove_samples}
-\title{Remove samples from seqmat and meta in an asv_list.}
+\title{Remove samples}
 \usage{
 remove_samples(asv_list, variable, variable_level)
 }
@@ -22,12 +22,10 @@ Either removes samples by a variable level, or removes samples by name.
 }
 \examples{
 
-asv_list_pruned <- remove_samples(asv_list=asv_list,variable_level = c("EVelazquez0717_480.1.B", "EVelazquez0717_480.1.C"))
+asv_list_pruned <- remove_samples(asv_list=asv_list,
+variable_level = c("EVelazquez0717_480.1.B", "EVelazquez0717_480.1.C"))
 
-asv_list_dirty <- remove_samples(asv_list = asv_list, variable = "Treatment", variable_level = "Dirty-A")
+asv_list_dirty <- remove_samples(asv_list = asv_list, variable = "Treatment",
+variable_level = "Dirty-A")
 
-establish variables
-remove samples within variable level from seqmat and meta
-remove samples by name
-remove factor levels corresponding to variable levels that were removed
 }

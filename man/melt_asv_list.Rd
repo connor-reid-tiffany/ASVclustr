@@ -14,6 +14,8 @@ melt_asv_list(asv_list, ratio = FALSE, rescale = FALSE, sam_var, time_var)
 \item{rescale}{A boolean. TRUE will rescale reads for each ASV in each sample to a value between 0 (min) and 1 (max).}
 
 \item{sam_var}{A string. The name of the sample variable in metadata.}
+
+\item{time_var}{A string. The name of the timepoint variable in metadata.}
 }
 \value{
 A data.frame in longform with every variable as a single vector for use in plotting functions.

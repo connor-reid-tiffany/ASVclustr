@@ -23,14 +23,11 @@ Subsets to ASVs that reach a required threshold of reads and or presence across 
 }
 \examples{
 
-asv_list_subset_abund <- remove_samples(asv_list=asv_list,variable_level = c("EVelazquez0717_480.1.B", "EVelazquez0717_480.1.C"))
+asv_list_subset_abund <- remove_samples(asv_list=asv_list,
+variable_level = c("EVelazquez0717_480.1.B", "EVelazquez0717_480.1.C"))
 
-asv_list_subset_<- remove_samples(asv_list = asv_list, variable = "Treatment", variable_level = "Dirty-A")
+asv_list_subset_<- remove_samples(asv_list = asv_list, variable = "Treatment",
+variable_level = "Dirty-A")
 
 
-define variables
-sum by sample to determine abundance in each sample
-keep ASVs present in n samples
-remove ASVs below a certain abundance threshold within all samples
-keeo ASVs present in n samples
 }

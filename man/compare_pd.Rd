@@ -39,28 +39,30 @@ Compares mean population dynamics of either clusters to determine if an experime
 or individual ASVs to determine if an independent variable effects population dynamics.
 }
 \examples{
-pd_cage_effect <- compare_pd(asv_list = asv_list, sam_var = "Sample, time_var = "Timepoint",
-independent_var = "cage", batch_effect="Treatment")
+pd_cage_effect <- compare_pd(asv_list = asv_list, sam_var = "Sample",
+time_var = "Timepoint",independent_var = "cage", batch_effect="Treatment")
 
-pd_cage_effect_rescale <- compare_pd(asv_list = asv_list, sam_var = "Sample, time_var = "Timepoint",
-independent_var = "cage", batch_effect="Treatment", rescale = TRUE)
+pd_cage_effect_rescale <- compare_pd(asv_list = asv_list, sam_var = "Sample",
+time_var = "Timepoint", independent_var = "cage", batch_effect="Treatment", rescale = TRUE)
 
-pd_cage_effect_ASV <- compare_pd(asv_list = asv_list, sam_var = "Sample, time_var = "Timepoint",
-independent_var = "cage", batch_effect="Treatment", by_asv = TRUE)
+pd_cage_effect_ASV <- compare_pd(asv_list = asv_list, sam_var = "Sample",
+time_var = "Timepoint", independent_var = "cage", batch_effect="Treatment", by_asv = TRUE)
 
-pd_cage_effect_ASV_rescale <- compare_pd(asv_list = asv_list, sam_var = "Sample, time_var = "Timepoint",
-independent_var = "cage", batch_effect="Treatment", by_asv = TRUE, rescale = TRUE)
+pd_cage_effect_ASV_rescale <- compare_pd(asv_list = asv_list, sam_var = "Sample",
+time_var = "Timepoint",independent_var = "cage",
+batch_effect="Treatment", by_asv = TRUE, rescale = TRUE)
 
-pd_Treatment <- compare_pd(asv_list = asv_list, sam_var = "Sample, time_var = "Timepoint",
-independent_var = "Treatment")
+pd_Treatment <- compare_pd(asv_list = asv_list, sam_var = "Sample",
+time_var = "Timepoint", independent_var = "Treatment")
 
-pd_Treatment_rescale <- compare_pd(asv_list = asv_list, sam_var = "Sample, time_var = "Timepoint",
-independent_var = "Treatment", rescale = TRUE)
+pd_Treatment_rescale <- compare_pd(asv_list = asv_list, sam_var = "Sample",
+time_var = "Timepoint", independent_var = "Treatment", rescale = TRUE)
 
-pd_Treatment_ASV <- compare_pd(asv_list = asv_list, sam_var = "Sample, time_var = "Timepoint",
-independent_var = "Treatment", by_asv = TRUE)
+pd_Treatment_ASV <- compare_pd(asv_list = asv_list, sam_var = "Sample",
+time_var = "Timepoint", independent_var = "Treatment", by_asv = TRUE)
 
-pd_Treatment_ASV_rescale <- compare_pd(asv_list = asv_list, sam_var = "Sample, time_var = "Timepoint",
-independent_var = "Treatment", by_asv = TRUE, rescale = TRUE)
+pd_Treatment_ASV_rescale <- compare_pd(asv_list = asv_list, sam_var = "Sample",
+time_var = "Timepoint", independent_var = "Treatment", by_asv = TRUE, rescale = TRUE)
+
 
 }
