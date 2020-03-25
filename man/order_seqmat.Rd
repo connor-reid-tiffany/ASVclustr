@@ -22,8 +22,10 @@ a list of seqmats for every sample ordered by timepoint
 Internal function to order a seqmat object by time point and convert to a list of dataframes with each sample as an element.
 }
 \examples{
-seqmat <- asv_list$seqmat
+seqmat <- as.data.frame(asv_list$seqmat)
 meta <- asv_list$meta
-order_seqmat(seqmat = seqmat, taxmat = taxmat, meta = meta, sam_var = "Sample", time_var = "Timepoint")
+seqmat_order_list <- order_seqmat(seqmat = seqmat, meta = meta, sam_var = "Sample",
+time_var = "Timepoint")
+
 
 }

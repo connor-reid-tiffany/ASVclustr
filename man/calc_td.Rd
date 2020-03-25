@@ -19,3 +19,8 @@ An asv_list.
 \description{
 Computes the time rate derivatives for every ASV in every sample and adds them as an element in your asv_list object asv_list.
 }
+\examples{
+
+asv_list <- calc_td(asv_list = asv_list,  sam_var = "Sample", time_var = 'Timepoint')
+
+}

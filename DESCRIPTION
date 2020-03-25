@@ -1,14 +1,24 @@
 Package: ASVclustr
-Title: What the Package Does (One Line, Title Case)
+Title: Clustering and analysis of amplicon sequence variants by population dynamics
 Version: 0.0.0.9000
 Authors@R: 
-    person(given = "First",
-           family = "Last",
+    person(given = "Connor",
+           family = "Tiffany",
            role = c("aut", "cre"),
-           email = "first.last@example.com",
-           comment = c(ORCID = "YOUR-ORCID-ID"))
-Description: What the package does (one paragraph).
-License: What license it uses
+           email = "crtiffany@ucdavis.edu",
+           comment = c(ORCID = "0000-0001-8188-7720"))
+Description: ASVclustr is a toolkit for analyzing the population dynamics of amplicon sequencing variants. It provides functions for clustering ASVs by population dynamics, cluster validation, and a statsitical test for comparing population dynamics of clusters or individual ASVs between experimental groups.
+Depends: R (>= 3.6.0)
+Imports:
+    ggplot2,
+    dplyr,
+    magrittr,
+    ggtree,
+    reshape2,
+    coin,
+    wordspace,
+    methods
+License: GPL-2
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.1.0
