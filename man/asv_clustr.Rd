@@ -29,7 +29,7 @@ returns a dendrogram if no k is set, or returns an asv_list with an h_clust elem
 }
 \examples{
 clustr_dendro  <- asv_clustr(asv_list = asv_list)
-plot(clustr_dendro)
+plot(clustr_dendro, labels = FALSE)
 rect.hclust(tree = clustr_dendro, border ="red", k=4)
 
 asv_list <- asv_clustr(asv_list = asv_list,  k=4)

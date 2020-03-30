@@ -2,6 +2,7 @@
 
 export(asv_clustr)
 export(calc_td)
+export(check_batch)
 export(cluster_means_bar)
 export(cluster_phytree)
 export(compare_pd)

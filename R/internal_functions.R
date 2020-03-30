@@ -42,4 +42,42 @@ order_seqmat <- function(seqmat, meta, sam_var,time_var){
                              f = as.factor(seqmat_order[,sample_var_2]))
 }
 
+#' Check metadata for independence of batch effect
+#'
+#'
+#' @description Internal function to produce a logical vector with an element for each batch effect factor level.
+#' TRUE means that the batch level is inseparable from the independent variable (i.e. not distributed among multiple
+#' levels of the independent variable)
+#' @param meta A data.frame. Metadata from an asv_list
+#' @param independent_var A string. Independent variable from metadata
+#' @param batch A string. Batch effect variable from metadatanew
+#' @return a list of seqmats for every sample ordered by timepoint
+#' @export
+#' @examples
+#'
+#' meta <- asv_list$meta
+#' true_false_vect <- check_batch(meta = meta, independent_var = "Treatment", batch = "cage")
+#'
 
+check_batch <- function(meta, independent_var, batch){
+
+  meta <- meta[,c(independent_var,batch)]
+  meta <- split(meta, f = as.factor(meta[,batch]))
+
+  meta <- lapply(meta, function(x) sapply(x[], function (x) if(is.factor(x)) factor(x) else x))
+  meta <- lapply(meta, as.data.frame)
+
+
+
+  level_lengths <- function(x, independent_var){
+
+    length(levels(as.factor(x[,independent_var])))
+
+  }
+
+
+  lengths <- sapply(meta, level_lengths, independent_var)
+
+  ifelse(lengths == 1, TRUE, FALSE)
+
+}

@@ -61,6 +61,8 @@ make_asv_list <- function(seqmat, taxmat, meta){
 #'
 melt_asv_list <- function(asv_list, ratio=FALSE, rescale=FALSE, sam_var, time_var){
 
+
+
   seqmat_order <- NULL
 
   if (!isClass(asv_list, Class = c("list", "ASVclustr"))){
@@ -114,16 +116,20 @@ melt_asv_list <- function(asv_list, ratio=FALSE, rescale=FALSE, sam_var, time_va
   colnames(seqmat_melt)[3] <- "Abundance"
 
   taxa <- as.data.frame(asv_list$taxmat)
-  taxa$OTU <- as.factor(rownames(taxa))
+  taxa$OTU <- rownames(taxa)
 
   h_clust <- asv_list$h_clust
 
   #left join to meta, then to taxa, then to cluster
+
   asv_melt <- left_join(seqmat_melt, meta, "SampleID")
+  asv_melt$OTU <- as.character(asv_melt$OTU)
   asv_melt <- left_join(asv_melt, taxa, "OTU")
 
   if (!is.null(asv_list$h_clust)){
+
     h_clust <- asv_list$h_clust
+    h_clust$OTU <- as.character(h_clust$OTU)
     asv_melt <- left_join(asv_melt, h_clust, "OTU")
   }
 
@@ -155,6 +161,8 @@ melt_asv_list <- function(asv_list, ratio=FALSE, rescale=FALSE, sam_var, time_va
 #' clustersum_total <- sum_by_cluster(asv_list = asv_list, abs_abund = abs_abund)
 #'
 sum_by_cluster <- function(asv_list, abs_abund){
+
+
 
   cluster <- SampleID <- Abundance <- NULL
 
@@ -197,6 +205,7 @@ sum_by_cluster <- function(asv_list, abs_abund){
   colnames(seqmat)[2] <- "OTU"
   colnames(seqmat)[3] <- "Abundance"
   #join to hclust df by OTU
+  seqmat$OTU <- as.character(seqmat$OTU)
   seqmat <- left_join(seqmat, asv_list$h_clust, by = "OTU")
   seqmat <- left_join(seqmat, meta, "SampleID")
   #Aggregate OTUs by cluster

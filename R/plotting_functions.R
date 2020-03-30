@@ -30,7 +30,7 @@ cluster_means_bar <- function(melted_asv_list, time_var){
     group_by(timepoint, cluster) %>%
     summarise(mean = mean(Abundance), n = n(), sd = sd(Abundance), se= sd(Abundance)/sqrt(n()))
   #sort timepoint in ascending order
-  sorted_timepoint <- paste(sort(as.integer(levels(means$timepoint))))
+  sorted_timepoint <- paste(sort(as.integer(levels(as.factor(means$timepoint)))))
   means$timepoint <- factor(means$timepoint, levels = sorted_timepoint)
   #plot
   plot <- ggplot(means, aes(x=timepoint, y=mean, fill=as.character(cluster))) +

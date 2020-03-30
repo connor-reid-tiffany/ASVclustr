@@ -22,7 +22,7 @@
 #' @export
 #' @examples
 #' clustr_dendro  <- asv_clustr(asv_list = asv_list)
-#' plot(clustr_dendro)
+#' plot(clustr_dendro, labels = FALSE)
 #' rect.hclust(tree = clustr_dendro, border ="red", k=4)
 #'
 #' asv_list <- asv_clustr(asv_list = asv_list,  k=4)
@@ -126,10 +126,6 @@ calc_td <- function(asv_list, sam_var, time_var){
   #iterate compute derivatives across each data frame in the list.
   seqmat_derivatives_list <- lapply(seqmat_td_list, compute_derivatives,
                                     time_var = time_var)
-
-  #remove timepoint_var column in each dataframe of seqtab_order_list
-  seqmat_td_list <- lapply(seqmat_td_list, function(x)
-    x[!(names(x) %in% c(time_var))])
   #change the rownames in seqtab_derivatives_list
   seqmat_derivatives_list <- lapply(seqmat_derivatives_list,
                                     function(x){ rownames(x) <- paste0(rownames(x), ".","TD"); x})
@@ -137,9 +133,9 @@ calc_td <- function(asv_list, sam_var, time_var){
 
   seqmat_derivatives <- do.call("rbind", seqmat_derivatives_list)
 
-  #convert to a matrix
-  #seqmat_total <- as.matrix(seqmat_total)
-  seqmat_derivatives <- as.matrix(seqmat_derivatives)
+  #remove timepoint_var column in each dataframe of seqtab_order_list
+
+  seqmat_derivatives <- seqmat_derivatives[,colnames(seqmat_derivatives)!= "timepoint"]
 
   #convert na values to 0
   conv_na_zero <- function(x){
@@ -160,7 +156,8 @@ calc_td <- function(asv_list, sam_var, time_var){
 #' @param sam_var A string. The metadata variable for samples.
 #' @param time_var A string. The metadata variable for timepoints.
 #' @param independent_var A string. The metadata variable for the experimental variable(s).
-#' @param batch_effect Optional. A string. A metadata variable for a batch effect.
+#' @param batch Optional. A string. A metadata variable for a batch effect. The batch effect must be separate
+#' from the independent variable, i.e. levels of the batch variable must be distributed among the levels of the idependent variable.
 #' @param by_asv A boolean. If TRUE, difference in integral means will be computed for every ASV. If FALSE
 #' difference in integral means will be computed for each cluster. Default is FALSE
 #' @param rescale A boolean. If TRUE, each ASV for each sample will be rescaled to a maximum value of 1 and
@@ -175,18 +172,27 @@ calc_td <- function(asv_list, sam_var, time_var){
 #' @return An asv_list.
 #' @export
 #' @examples
+#'
+#' \dontshow{
+#' new_meta <- asv_list$meta
+#'
+#' new_meta$batch <- c("A","B","C","D")
+#'
+#' asv_list$meta <- new_meta
+#'
+#' }
 #' pd_cage_effect <- compare_pd(asv_list = asv_list, sam_var = "Sample",
-#' time_var = "Timepoint",independent_var = "cage", batch_effect="Treatment")
+#' time_var = "Timepoint",independent_var = "Treatment", batch="batch")
 #'
 #' pd_cage_effect_rescale <- compare_pd(asv_list = asv_list, sam_var = "Sample",
-#' time_var = "Timepoint", independent_var = "cage", batch_effect="Treatment", rescale = TRUE)
+#' time_var = "Timepoint", independent_var = "Treatment", batch="batch", rescale = TRUE)
 #'
 #' pd_cage_effect_ASV <- compare_pd(asv_list = asv_list, sam_var = "Sample",
-#' time_var = "Timepoint", independent_var = "cage", batch_effect="Treatment", by_asv = TRUE)
+#' time_var = "Timepoint", independent_var = "Treatment", batch="batch", by_asv = TRUE)
 #'
 #' pd_cage_effect_ASV_rescale <- compare_pd(asv_list = asv_list, sam_var = "Sample",
-#' time_var = "Timepoint",independent_var = "cage",
-#' batch_effect="Treatment", by_asv = TRUE, rescale = TRUE)
+#' time_var = "Timepoint",independent_var = "Treatment",
+#' batch="batch", by_asv = TRUE, rescale = TRUE)
 #'
 #' pd_Treatment <- compare_pd(asv_list = asv_list, sam_var = "Sample",
 #' time_var = "Timepoint", independent_var = "Treatment")
@@ -201,7 +207,7 @@ calc_td <- function(asv_list, sam_var, time_var){
 #' time_var = "Timepoint", independent_var = "Treatment", by_asv = TRUE, rescale = TRUE)
 #'
 #'
-compare_pd <- function(asv_list, sam_var,time_var,independent_var,batch_effect, by_asv=FALSE, rescale=FALSE){
+compare_pd <- function(asv_list, sam_var,time_var,independent_var,batch, by_asv=FALSE, rescale=FALSE){
 
   if (!isClass(asv_list, Class = c("list", "ASVclustr"))){
     stop("asv_list must be an object of class list and ASVclustr")
@@ -301,13 +307,14 @@ compare_pd <- function(asv_list, sam_var,time_var,independent_var,batch_effect, 
 
   #test for significant difference in variance of ASV curves in each cluster
   #between independent variables
-  if (missing(batch_effect)){
+  if (missing(batch)){
     #remove unecessary vectors from meta, rename variables for modelling, merge with seqmat for modeling
     meta_2 <- meta[,names(meta) %in% c(sam_var,independent_var)]
     colnames(seqmat_integrals)[colnames(seqmat_integrals) == "variable"] <- sam_var
     seqmat_integrals<- left_join(seqmat_integrals, meta_2,sam_var)
 
     colnames(seqmat_integrals)[colnames(seqmat_integrals) == independent_var] <- "independent_var"
+    seqmat_integrals[,"independent_var"] <- as.factor(seqmat_integrals[,"independent_var"])
     #remove duplicates
     seqmat_integrals <- distinct(seqmat_integrals)
 
@@ -336,17 +343,24 @@ compare_pd <- function(asv_list, sam_var,time_var,independent_var,batch_effect, 
     seqmat_mwu_list <- lapply(seqmat_mwu_list, pvalue)
     seqmat_mwu_list <- p.adjust(p = seqmat_mwu_list, method = "BH")
 
-  } else if (!missing(batch_effect)){
+  } else if (!missing(batch)){
+
+    if (any(check_batch(meta = meta[,c(independent_var, batch)],
+                        independent_var = independent_var, batch = batch) == TRUE)){
+    stop("batch effect must be distributed among multiple levels of independent variable")
+
+    }
 
     #remove unecessary vectors from meta, rename variables for modelling, merge with seqmat for modeling
-    meta_2 <- meta[,names(meta) %in% c(sam_var,independent_var, batch_effect)]
+    meta_2 <- meta[,names(meta) %in% c(sam_var,independent_var, batch)]
     colnames(seqmat_integrals)[colnames(seqmat_integrals) == "variable"] <- sam_var
     seqmat_integrals<- left_join(seqmat_integrals, meta_2,sam_var)
 
 
-    colnames(seqmat_integrals)[colnames(seqmat_integrals) == batch_effect] <- "batch"
+    colnames(seqmat_integrals)[colnames(seqmat_integrals) == batch] <- "batch"
     colnames(seqmat_integrals)[colnames(seqmat_integrals) == independent_var] <- "independent_var"
-
+    seqmat_integrals[,"independent_var"] <- as.factor(seqmat_integrals[,"independent_var"])
+    seqmat_integrals[,"batch"] <- as.factor(seqmat_integrals[,"batch"])
     #remove duplicate rows
     seqmat_integrals <- distinct(seqmat_integrals)
 
