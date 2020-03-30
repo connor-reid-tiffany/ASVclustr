@@ -9,7 +9,7 @@ compare_pd(
   sam_var,
   time_var,
   independent_var,
-  batch_effect,
+  batch,
   by_asv = FALSE,
   rescale = FALSE
 )
@@ -23,7 +23,8 @@ compare_pd(
 
 \item{independent_var}{A string. The metadata variable for the experimental variable(s).}
 
-\item{batch_effect}{Optional. A string. A metadata variable for a batch effect.}
+\item{batch}{Optional. A string. A metadata variable for a batch effect. The batch effect must be separate
+from the independent variable, i.e. levels of the batch variable must be distributed among the levels of the idependent variable.}
 
 \item{by_asv}{A boolean. If TRUE, difference in integral means will be computed for every ASV. If FALSE
 difference in integral means will be computed for each cluster. Default is FALSE}
@@ -39,18 +40,27 @@ Compares mean population dynamics of either clusters to determine if an experime
 or individual ASVs to determine if an independent variable effects population dynamics.
 }
 \examples{
+
+\dontshow{
+new_meta <- asv_list$meta
+
+new_meta$batch <- c("A","B","C","D")
+
+asv_list$meta <- new_meta
+
+}
 pd_cage_effect <- compare_pd(asv_list = asv_list, sam_var = "Sample",
-time_var = "Timepoint",independent_var = "cage", batch_effect="Treatment")
+time_var = "Timepoint",independent_var = "Treatment", batch="batch")
 
 pd_cage_effect_rescale <- compare_pd(asv_list = asv_list, sam_var = "Sample",
-time_var = "Timepoint", independent_var = "cage", batch_effect="Treatment", rescale = TRUE)
+time_var = "Timepoint", independent_var = "Treatment", batch="batch", rescale = TRUE)
 
 pd_cage_effect_ASV <- compare_pd(asv_list = asv_list, sam_var = "Sample",
-time_var = "Timepoint", independent_var = "cage", batch_effect="Treatment", by_asv = TRUE)
+time_var = "Timepoint", independent_var = "Treatment", batch="batch", by_asv = TRUE)
 
 pd_cage_effect_ASV_rescale <- compare_pd(asv_list = asv_list, sam_var = "Sample",
-time_var = "Timepoint",independent_var = "cage",
-batch_effect="Treatment", by_asv = TRUE, rescale = TRUE)
+time_var = "Timepoint",independent_var = "Treatment",
+batch="batch", by_asv = TRUE, rescale = TRUE)
 
 pd_Treatment <- compare_pd(asv_list = asv_list, sam_var = "Sample",
 time_var = "Timepoint", independent_var = "Treatment")
