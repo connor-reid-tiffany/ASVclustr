@@ -31,11 +31,10 @@ make_asv_list <- function(seqmat, taxmat, meta){
     stop("meta must be a data.frame with identical rownames to seqmat")
   }
 
-
   asv_list <- list(seqmat = seqmat, taxmat = taxmat, meta = meta)
 
-
   class(asv_list) <- append(class(asv_list), "ASVclustr")
+
   return(asv_list)
 
 }
@@ -61,83 +60,90 @@ make_asv_list <- function(seqmat, taxmat, meta){
 #'
 melt_asv_list <- function(asv_list, ratio=FALSE, rescale=FALSE, sam_var, time_var){
 
-
-
-  seqmat_order <- NULL
-
   if (!isClass(asv_list, Class = c("list", "ASVclustr"))){
     stop("asv_list must be a list object with class ASVclustr")
   }
 
+  #establish objects
+  seqmat_order <- NULL
+  meta <- asv_list$meta
+  meta$SampleID <- rownames(meta)
+
+  #convert read counts to ratio or keep as counts
   if (ratio==FALSE){
-    #access seqmat and melt into long form of 3 columns. SampleID, ASV, and
+
     seqmat <- as.data.frame(asv_list$seqmat)
+
   } else if (ratio==TRUE){
+
     seqmat <- t(asv_list$seqmat)
     seqmat <- apply(seqmat, FUN = function(x) x/sum(x), 2)
     seqmat <- as.data.frame(t(seqmat))
+
   }
   #rescale values between 0 and 1
   if (rescale==TRUE){
-    meta <- asv_list$meta
 
-    rescale <- function(x){
-      x <- (as.matrix(x)-min(as.matrix(x)))/(max(as.matrix(x))-min(as.matrix(x)))
-      return(x)
-    }
+    seqmat_order_list <- order_seqmat(seqmat = seqmat, meta = meta,
+                                      sam_var = sam_var, time_var = time_var)
 
-    seqmat_order_list <- order_seqmat(seqmat = seqmat, meta = meta, sam_var = sam_var, time_var = time_var)
     #remove all metadata variables from each data.frame in the list except for the timepoint variable
     seqmat_order_list <- lapply(seqmat_order_list, function(x)
       x[!(names(x) %in% c("SampleID","sample", "timepoint"))])
 
-    seqmat_order_list <- lapply(seqmat_order_list, function(x) sapply(x,  rescale))
-    #convert NA to 0
-    conv_na_zero <- function(x){
-      x[is.na(x)] <- 0
-      return(x)
-    }
+    #rescale
+    seqmat_order_list <- lapply(seqmat_order_list, function(x) sapply(x,
+             function (x)(as.matrix(x)-min(as.matrix(x)))/(max(as.matrix(x))-min(as.matrix(x)))))
 
-    seqmat_order_list <- lapply(seqmat_order_list, conv_na_zero)
+    #convert NA to 0
+    seqmat_order_list <- lapply(seqmat_order_list, function (x) ifelse(is.na(x), 0, x))
+
+    #recombine list elements into a single data.frame and restore rownames attr which was lost
     seqmat <- do.call("rbind", seqmat_order_list)
-    rownames(seqmat) <- rownames(seqmat_order)
-    seqmat <- as.data.frame(seqmat)
+    rownames(seqmat) <- rownames(asv_list$seqmat)
 
     } else  if (rescale==FALSE){
+
     seqmat <- seqmat
-    meta <- asv_list$meta
-    meta$SampleID <- rownames(meta)
+
   }
   #create SampleID column to left join with taxa and metadata and then melt to longform
   seqmat$SampleID <- rownames(seqmat)
   seqmat_melt <- melt(seqmat)
 
+  #name columns for joining
   colnames(seqmat_melt)[2] <- "OTU"
   colnames(seqmat_melt)[3] <- "Abundance"
 
+  #create column for joining
   taxa <- as.data.frame(asv_list$taxmat)
   taxa$OTU <- rownames(taxa)
 
+  #create h_clust object
   h_clust <- asv_list$h_clust
 
   #left join to meta, then to taxa, then to cluster
-
   asv_melt <- left_join(seqmat_melt, meta, "SampleID")
   asv_melt$OTU <- as.character(asv_melt$OTU)
   asv_melt <- left_join(asv_melt, taxa, "OTU")
 
+  #incorporate cluster vector if it exists
   if (!is.null(asv_list$h_clust)){
 
     h_clust <- asv_list$h_clust
     h_clust$OTU <- as.character(h_clust$OTU)
     asv_melt <- left_join(asv_melt, h_clust, "OTU")
+
+    #convert cluster to character for downstream graphing functions
+    asv_melt$cluster <- as.character(asv_melt$cluster)
+
   }
+
+  #convert time variable to a factor for downstream graphing functions
+  asv_melt[,time_var] <- as.factor(asv_melt[,time_var])
 
   return(asv_melt)
 }
-
-
-
 
 
 #' Sum by cluster
@@ -162,8 +168,7 @@ melt_asv_list <- function(asv_list, ratio=FALSE, rescale=FALSE, sam_var, time_va
 #'
 sum_by_cluster <- function(asv_list, abs_abund){
 
-
-
+  #establish objects
   cluster <- SampleID <- Abundance <- NULL
 
   if (!isClass(asv_list, Class = c("list", "ASVclustr"))){
@@ -176,7 +181,6 @@ sum_by_cluster <- function(asv_list, abs_abund){
 
   #transform counts to ratio
   seqmat <- asv_list$seqmat
-
   seqmat <- t(apply(seqmat, 1, FUN = function(x) x/sum(x)))
 
   #pull out metadata
@@ -190,6 +194,7 @@ sum_by_cluster <- function(asv_list, abs_abund){
   }
   #create sampleID column to match normalized abundance values to
   abs_abund_vect <- abs_abund[,1]
+
   #multiply values in rows by absolute abundance
   seqmat <- seqmat * abs_abund_vect
   seqmat <- as.data.frame(seqmat)
@@ -197,19 +202,22 @@ sum_by_cluster <- function(asv_list, abs_abund){
   } else if (missing(abs_abund)){
 
   seqmat <- as.data.frame(seqmat)
+
   }
   #remake SampleID
   seqmat$SampleID <-rownames(seqmat)
+
   #melt
   seqmat <- melt(seqmat)
   colnames(seqmat)[2] <- "OTU"
   colnames(seqmat)[3] <- "Abundance"
+
   #join to hclust df by OTU
   seqmat$OTU <- as.character(seqmat$OTU)
   seqmat <- left_join(seqmat, asv_list$h_clust, by = "OTU")
   seqmat <- left_join(seqmat, meta, "SampleID")
-  #Aggregate OTUs by cluster
 
+  #Aggregate OTUs by cluster
   seqmat <- seqmat %>%
     group_by(cluster,SampleID) %>%
     summarise(cluster_abundance = sum(Abundance))
@@ -246,7 +254,7 @@ remove_samples <- function(asv_list, variable, variable_level){
     stop("asv_list must be of classes list and ASVclustr")
   }
 
-  #establish variables
+  #establish objects
   seqmat <- as.data.frame(asv_list$seqmat)
   meta <- asv_list$meta
 
@@ -255,6 +263,7 @@ remove_samples <- function(asv_list, variable, variable_level){
 
   #remove samples within variable level from seqmat and meta
   if (!missing(variable)){
+
     meta2 <- meta[,c("SampleID", variable)]
     seqmat <- left_join(seqmat, meta2, "SampleID")
 
@@ -270,20 +279,25 @@ remove_samples <- function(asv_list, variable, variable_level){
     seqmat_sub <- seqmat[!seqmat[,"SampleID"] %in% variable_level,]
     meta <- meta[!meta[,"SampleID"] %in% variable_level,]
     rownames(seqmat_sub) <- seqmat_sub$SampleID
+
   }
 
   #remove factor levels corresponding to variable levels that were removed
   seqmat_sub[] <- lapply(seqmat_sub, function(x) if(is.factor(x)) factor(x) else x)
   meta[] <- lapply(meta,function(x) if(is.factor(x)) factor(x) else x)
 
+  #restore rownames attr, remove SampleID columns
   rownames(meta) <- meta$SampleID
   meta <- meta[,!names(meta) %in% "SampleID"]
   seqmat_sub <- seqmat_sub[,!names(seqmat_sub) %in% 'SampleID']
 
-  seqmat_sub <- seqmat_sub[, colSums(seqmat_sub)!= 0] #'this code removes ASVs that are 0 across all samples after subsetting
-  seqmat_sub <- as.matrix(seqmat_sub)
-  asv_list$seqmat <- seqmat_sub
+  #removes ASVs that are 0 across all samples after subsetting
+  seqmat_sub <- seqmat_sub[, colSums(seqmat_sub)!= 0]
+
+  #replace seqmat and meta in asv list with subsetted seqmat and meta
+  asv_list$seqmat <- as.matrix(seqmat_sub)
   asv_list$meta <- meta
+
   return(asv_list)
 }
 
@@ -322,8 +336,10 @@ subset_ASVs <- function(asv_list, sam_var, sam_threshold, abund_threshold){
   seqmat$SampleID <- rownames(seqmat)
   meta$SampleID <- rownames(meta)
 
+  #join by SampleID
   join <- left_join(seqmat,meta, "SampleID")
 
+  #rename sample variable
   colnames(join)[colnames(join) == sam_var] <- "sample"
 
   #sum by sample to determine abundance in each sample
@@ -331,37 +347,35 @@ subset_ASVs <- function(asv_list, sam_var, sam_threshold, abund_threshold){
     group_by(sample) %>%
     summarise_if(is.numeric, base::sum)
 
+  #create character vector of columns to remove and remove them
   remove_cols <- colnames(meta)
-
   join <- join[,!names(join) %in% c(remove_cols, "sample","SampleID")]
 
   if(missing(abund_threshold)){
 
     #keep ASVs present in n samples
     above_zero_counts <- data.frame(NonZeroCounts=colSums(join!=0)[colSums(join!=0)!=0])
-
     above_zero_counts$OTU <- rownames(above_zero_counts)
-
     above_zero_counts <- above_zero_counts[above_zero_counts[,1] >= sam_threshold,]
 
     keep_OTUs <- above_zero_counts$OTU
-
     seqmat <- seqmat[,names(seqmat) %in% keep_OTUs]
 
   } else if (!missing(abund_threshold)){
 
     #remove ASVs below a certain abundance threshold within all samples
     above_thresh_counts <- as.data.frame(colSums(join >= abund_threshold))
-
     above_thresh_counts$OTU <- rownames(above_thresh_counts)
+
     #keep ASVs present in n samples
     above_thresh_counts <- above_thresh_counts[above_thresh_counts[,1] >= sam_threshold,]
 
     keep_OTUs <- above_thresh_counts$OTU
-
     seqmat <- seqmat[,names(seqmat) %in% keep_OTUs]
+
   }
 
   asv_list$seqmat <- as.matrix(seqmat)
+
   return(asv_list)
 }

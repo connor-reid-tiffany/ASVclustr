@@ -21,17 +21,22 @@
 #'
 cluster_means_bar <- function(melted_asv_list, time_var){
 
+  #establish objects
   timepoint <- cluster <- Abundance <- se <- NULL
-  #remove NA values
+
+  #remove NA values, rename timepoint variable
   means <- melted_asv_list[!is.na(melted_asv_list[,"Abundance"]),]
   colnames(means)[colnames(means) == time_var] <- "timepoint"
+
   #calculate means by cluster and timepoint
   means <- means %>%
     group_by(timepoint, cluster) %>%
     summarise(mean = mean(Abundance), n = n(), sd = sd(Abundance), se= sd(Abundance)/sqrt(n()))
+
   #sort timepoint in ascending order
   sorted_timepoint <- paste(sort(as.integer(levels(as.factor(means$timepoint)))))
   means$timepoint <- factor(means$timepoint, levels = sorted_timepoint)
+
   #plot
   plot <- ggplot(means, aes(x=timepoint, y=mean, fill=as.character(cluster))) +
     geom_bar(position=position_dodge(), stat="identity") +
@@ -47,9 +52,8 @@ cluster_means_bar <- function(melted_asv_list, time_var){
 
 #' Plot a cluster phytree.
 #'
-#' @description Wrapper function for ggtree that produces a tree with branches and tips colored by cluster. can use ggtree aesthetic layers.
-#'
-#'
+#' @description Wrapper function for ggtree that produces a tree with branches and tips colored by cluster.
+#' can use ggtree aesthetic layers.
 #' @param asv_list An asv_list. Must have an h_clust element.
 #' @param tree A tree of phylo class produced with the seqmat given to the asv_list constructor function.
 #' @param cladogram A boolean. TRUE produces a cladogram where branch lengths are equal, FALSE produces a
@@ -69,7 +73,9 @@ cluster_means_bar <- function(melted_asv_list, time_var){
 #'
 cluster_phytree <- function(asv_list, tree, cladogram=FALSE, layout="circular"){
 
+  #establish objects
   cluster <- NULL
+
   if (!isClass(asv_list, Class = c("list", "ASVclustr"))){
     stop("asv_list must be a list object with class ASVclustr")
   }
@@ -83,7 +89,7 @@ cluster_phytree <- function(asv_list, tree, cladogram=FALSE, layout="circular"){
 
     ggtree_ob <- ggtree(tree, layout = layout)
 
-  }else if (cladogram==TRUE){
+  } else if (cladogram==TRUE){
 
     ggtree_ob <- ggtree(tree, layout = layout, branch.length = "none")
 
@@ -91,7 +97,6 @@ cluster_phytree <- function(asv_list, tree, cladogram=FALSE, layout="circular"){
 
   #join Cluster data into ggtree data element by ASV value to color by cluster
   colnames(ggtree_ob$data)[colnames(ggtree_ob$data) == "label"] <- "OTU"
-
   ggtree_ob$data <- left_join(ggtree_ob$data, asv_list$h_clust, "OTU")
   ggtree_ob$data$cluster <- as.character(ggtree_ob$data$cluster)
 

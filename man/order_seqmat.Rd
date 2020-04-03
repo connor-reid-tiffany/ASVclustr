@@ -19,7 +19,8 @@ order_seqmat(seqmat, meta, sam_var, time_var)
 a list of seqmats for every sample ordered by timepoint
 }
 \description{
-Internal function to order a seqmat object by time point and convert to a list of dataframes with each sample as an element.
+Internal function to order a seqmat object by time point and
+convert to a list of dataframes with each sample as an element.
 }
 \examples{
 seqmat <- as.data.frame(asv_list$seqmat)

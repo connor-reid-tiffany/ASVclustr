@@ -24,7 +24,8 @@ compare_pd(
 \item{independent_var}{A string. The metadata variable for the experimental variable(s).}
 
 \item{batch}{Optional. A string. A metadata variable for a batch effect. The batch effect must be separate
-from the independent variable, i.e. levels of the batch variable must be distributed among the levels of the idependent variable.}
+from the independent variable, i.e. levels of the batch variable must be distributed among the levels of
+the idependent variable.}
 
 \item{by_asv}{A boolean. If TRUE, difference in integral means will be computed for every ASV. If FALSE
 difference in integral means will be computed for each cluster. Default is FALSE}
@@ -36,8 +37,8 @@ minimum value of 0. Otherwise raw read counts will be used. Default is FALSE}
 An asv_list.
 }
 \description{
-Compares mean population dynamics of either clusters to determine if an experimental variable or batch introduces noise,
-or individual ASVs to determine if an independent variable effects population dynamics.
+Compares mean population dynamics of either clusters to determine if an experimental variable
+or batch introduces noise, or individual ASVs to determine if an independent variable effects population dynamics.
 }
 \examples{
 
