@@ -1,7 +1,8 @@
 #' Order seqmat by sample and timepoint
 #'
 #'
-#' @description Internal function to order a seqmat object by time point and convert to a list of dataframes with each sample as an element.
+#' @description Internal function to order a seqmat object by time point and
+#' convert to a list of dataframes with each sample as an element.
 #' @param seqmat seqmat from an asv_list
 #' @param meta metadata from an asv_list
 #' @param sam_var sample variable from metadata
@@ -21,25 +22,29 @@ order_seqmat <- function(seqmat, meta, sam_var,time_var){
 
   timepoint <- NULL
 
+  #add SampleID column to join meta with seqmat, then subset to required columns
   meta$SampleID <- rownames(meta)
-  meta2 <- as.data.frame(meta[,c(sam_var,time_var,"SampleID")])
+  meta <- meta[,c(sam_var,time_var,"SampleID")]
+
   #add column to seqtab to join the seqtab df with metadata
-
   seqmat$SampleID <- rownames(seqmat)
-  seqmat <-left_join(seqmat, meta2, "SampleID")
-  #convert the timepoint variable to numeric, then order the dataframe by Sample and timepoint
+  seqmat <-left_join(seqmat, meta, "SampleID")
 
+  #convert the timepoint variable to numeric, rename variables, then order the dataframe
+  #by Sample and timepoint
   seqmat[,time_var] <- as.numeric(as.character(seqmat[,time_var]))
   colnames(seqmat)[colnames(seqmat) == sam_var] <- "sample"
   colnames(seqmat)[colnames(seqmat) == time_var] <- "timepoint"
-  sample_var_2 = "sample"
-  timepoint_var_2 = "timepoint"
+
   seqmat_order <- arrange(seqmat, sample,timepoint)
   rownames(seqmat_order) <- seqmat_order$SampleID
-  #split the dataframe into a list of dataframes, where each dataframe is one Sample
 
+  #split the dataframe into a list of dataframes, where each dataframe is one Sample
   seqmat_order_list <- split(seqmat_order,
-                             f = as.factor(seqmat_order[,sample_var_2]))
+                             f = as.factor(seqmat_order[,"sample"]))
+
+  return(seqmat_order_list)
+
 }
 
 #' Check metadata for independence of batch effect
@@ -61,23 +66,26 @@ order_seqmat <- function(seqmat, meta, sam_var,time_var){
 
 check_batch <- function(meta, independent_var, batch){
 
+  #subset meta to variables needed, split into list of data.frames by batch level
   meta <- meta[,c(independent_var,batch)]
   meta <- split(meta, f = as.factor(meta[,batch]))
 
+  #remove missing factor levels, reconvert elements to data.frames from matrices
   meta <- lapply(meta, function(x) sapply(x[], function (x) if(is.factor(x)) factor(x) else x))
   meta <- lapply(meta, as.data.frame)
 
-
-
+  #create function to measure the length of factor levels of independent variable in each data.frame
   level_lengths <- function(x, independent_var){
 
     length(levels(as.factor(x[,independent_var])))
 
   }
 
-
+  #iterate function across list elements
   lengths <- sapply(meta, level_lengths, independent_var)
 
+  #create logical vector from resulting vector. If the length is 1 it means there is only
+  #one independent variable level for its respective batch, which means the batch level is inseparable
   ifelse(lengths == 1, TRUE, FALSE)
 
 }

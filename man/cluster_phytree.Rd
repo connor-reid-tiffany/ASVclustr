@@ -20,7 +20,8 @@ phylogenetic tree. Default is FALSE.}
 A ggtree object
 }
 \description{
-Wrapper function for ggtree that produces a tree with branches and tips colored by cluster. can use ggtree aesthetic layers.
+Wrapper function for ggtree that produces a tree with branches and tips colored by cluster.
+can use ggtree aesthetic layers.
 }
 \examples{
 cluster_phytree(asv_list = asv_list, tree = phangtree$tree)
