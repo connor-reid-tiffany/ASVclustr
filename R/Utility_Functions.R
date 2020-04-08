@@ -19,15 +19,15 @@
 #' @export
 make_asv_list <- function(seqmat, taxmat, meta){
 
-  if (!is.matrix(seqmat) & !is.numeric(seqmat)){
+  if (!is.matrix(seqmat) && !is.numeric(seqmat)){
     stop("seqmat must be a numeric matrix")
   }
 
-  if (!is.matrix(taxmat) & !is.character(taxmat)){
+  if (!is.matrix(taxmat) && !is.character(taxmat)){
     stop("taxmat must be a character matrix")
   }
 
-  if (!is.data.frame(meta) & !identical(rownames(seqmat), rownames(meta))){
+  if (!is.data.frame(meta) && !identical(rownames(seqmat), rownames(meta))){
     stop("meta must be a data.frame with identical rownames to seqmat")
   }
 
@@ -166,7 +166,7 @@ melt_asv_list <- function(asv_list, ratio=FALSE, rescale=FALSE, sam_var, time_va
 #'
 #' clustersum_total <- sum_by_cluster(asv_list = asv_list, abs_abund = abs_abund)
 #'
-sum_by_cluster <- function(asv_list, abs_abund){
+sum_by_cluster <- function(asv_list, abs_abund = NULL){
 
   #establish objects
   cluster <- SampleID <- Abundance <- NULL
@@ -187,7 +187,7 @@ sum_by_cluster <- function(asv_list, abs_abund){
   meta <- asv_list$meta
   meta$SampleID <- rownames(meta)
 
-  if (!missing(abs_abund)){
+  if (!is.null(abs_abund)){
 
   if (!is.numeric(abs_abund[,1])){
   stop("First column of abs_abund data.frame must be a numeric vector of total abundance values for each sample")
@@ -199,7 +199,7 @@ sum_by_cluster <- function(asv_list, abs_abund){
   seqmat <- seqmat * abs_abund_vect
   seqmat <- as.data.frame(seqmat)
 
-  } else if (missing(abs_abund)){
+  } else if (is.null(abs_abund)){
 
   seqmat <- as.data.frame(seqmat)
 
@@ -248,7 +248,7 @@ sum_by_cluster <- function(asv_list, abs_abund){
 #' asv_list_dirty <- remove_samples(asv_list = asv_list, variable = "Treatment",
 #' variable_level = "Dirty-A")
 #'
-remove_samples <- function(asv_list, variable, variable_level){
+remove_samples <- function(asv_list, variable = NULL, variable_level){
 
   if (!isClass(asv_list, Class = c("list", "ASVclustr"))){
     stop("asv_list must be of classes list and ASVclustr")
@@ -262,7 +262,7 @@ remove_samples <- function(asv_list, variable, variable_level){
   meta$SampleID <- rownames(meta)
 
   #remove samples within variable level from seqmat and meta
-  if (!missing(variable)){
+  if (!is.null(variable)){
 
     meta2 <- meta[,c("SampleID", variable)]
     seqmat <- left_join(seqmat, meta2, "SampleID")
@@ -274,7 +274,7 @@ remove_samples <- function(asv_list, variable, variable_level){
     meta <- meta[!meta[,variable]%in% variable_level,]
 
   #remove samples by name
-  } else if (missing(variable)){
+  } else if (is.null(variable)){
 
     seqmat_sub <- seqmat[!seqmat[,"SampleID"] %in% variable_level,]
     meta <- meta[!meta[,"SampleID"] %in% variable_level,]
@@ -324,7 +324,7 @@ remove_samples <- function(asv_list, variable, variable_level){
 #' variable_level = "Dirty-A")
 #'
 #'
-subset_ASVs <- function(asv_list, sam_var, sam_threshold, abund_threshold){
+subset_ASVs <- function(asv_list, sam_var, sam_threshold, abund_threshold = NULL){
 
   if (!isClass(asv_list, Class = c("list", "ASVclustr"))){
     stop("asv_list must be of classes list and ASVclustr")
@@ -351,7 +351,7 @@ subset_ASVs <- function(asv_list, sam_var, sam_threshold, abund_threshold){
   remove_cols <- colnames(meta)
   join <- join[,!names(join) %in% c(remove_cols, "sample","SampleID")]
 
-  if(missing(abund_threshold)){
+  if(is.null(abund_threshold)){
 
     #keep ASVs present in n samples
     above_zero_counts <- data.frame(NonZeroCounts=colSums(join!=0)[colSums(join!=0)!=0])
@@ -361,7 +361,7 @@ subset_ASVs <- function(asv_list, sam_var, sam_threshold, abund_threshold){
     keep_OTUs <- above_zero_counts$OTU
     seqmat <- seqmat[,names(seqmat) %in% keep_OTUs]
 
-  } else if (!missing(abund_threshold)){
+  } else if (!is.null(abund_threshold)){
 
     #remove ASVs below a certain abundance threshold within all samples
     above_thresh_counts <- as.data.frame(colSums(join >= abund_threshold))

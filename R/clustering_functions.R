@@ -6,8 +6,8 @@
 #' @param asv_list An asv_list.
 #' @param agg_method A string of either "ward", "ward.D2", "complete", "single", "average", "mcquitty", "median", or "centroid".
 #' "ward.D2" is the default. See ?hclust for more details.
-#' @param k Optional. An integer. The number of clusters you wish to group your ASVs into. If k is missing asv_clustr will return
-#' a dendrogram plot instead
+#' @param k Optional. An integer. The number of clusters you wish to group your ASVs into. If a k is not chosen asv_clustr will
+#' return a dendrogram plot instead
 #' @param td A string of either "none", "both", or "td_only". Default is "none":
 #'           "none" will use only abundance data to perform cosine similarity calculation.
 #'           "both" will use both the abundance data and time rate derivative data.
@@ -32,7 +32,7 @@
 #' asv_list <- asv_clustr(asv_list = asv_list,  k=4, td = "td_only")
 #'
 #'
-asv_clustr <- function(asv_list, agg_method = "ward.D2", td = "none", k){
+asv_clustr <- function(asv_list, agg_method = "ward.D2", td = "none", k = NULL){
 
   if (!isClass(asv_list, Class = c("list", "ASVclustr"))){
     stop("asv_list must be of classes list and ASVclustr")
@@ -68,13 +68,13 @@ asv_clustr <- function(asv_list, agg_method = "ward.D2", td = "none", k){
   cosine_sim <- dist.matrix(M = seqmat, convert = TRUE, byrow = FALSE)
 
   #perform hierarchical clustering
-  if (missing(k)){
+  if (is.null(k)){
 
     h_clust <- hclust(d = as.dist(cosine_sim),
                       method = agg_method)
     return(h_clust)
 
-  } else if (!missing(k)){
+  } else if (!is.null(k)){
 
     h_clust <- as.data.frame(cutree(hclust(d = as.dist(cosine_sim),
                                            method = agg_method),k = k))
@@ -219,10 +219,25 @@ calc_td <- function(asv_list, sam_var, time_var){
 #' time_var = "Timepoint", independent_var = "Treatment", by_asv = TRUE, rescale = TRUE)
 #'
 #'
-compare_pd <- function(asv_list, sam_var,time_var,independent_var,batch, by_asv=FALSE, rescale=FALSE){
+compare_pd <- function(asv_list, sam_var, time_var, independent_var, batch = NULL, by_asv=FALSE, rescale=FALSE){
 
   if (!isClass(asv_list, Class = c("list", "ASVclustr"))){
+
     stop("asv_list must be an object of class list and ASVclustr")
+
+  }
+
+  if (by_asv==FALSE && is.null(asv_list$h_clust)){
+
+    stop("asv_list must have an h_clust element if parameter by_asv=FALSE")
+
+  }
+
+  if (!is.null(batch) && any(check_batch(meta = asv_list$meta[,c(independent_var, batch)],
+                      independent_var = independent_var, batch = batch) == FALSE)){
+
+    stop("batch effect must be distributed among multiple levels of independent variable")
+
   }
 
   #define variables
@@ -287,12 +302,20 @@ compare_pd <- function(asv_list, sam_var,time_var,independent_var,batch, by_asv=
   seqmat_integrals$OTU <- rownames(seqmat_integrals)
 
   #Join cluster data
-  seqmat_integrals <- left_join(seqmat_integrals, asv_list$h_clust,by = "OTU")
-  seqmat_integrals <- melt(seqmat_integrals,  c("OTU", "cluster"))
+   if (by_asv==FALSE){
 
+     seqmat_integrals <- left_join(seqmat_integrals, asv_list$h_clust,by = "OTU")
+     seqmat_integrals <- melt(seqmat_integrals,  c("OTU", "cluster"))
+
+
+   } else if (by_asv==TRUE){
+
+     seqmat_integrals <- melt(seqmat_integrals, "OTU")
+
+  }
   #test for significant difference in variance of ASV curves in each cluster
   #between independent variables
-  if (missing(batch)){
+  if (is.null(batch)){
     #remove unecessary vectors from meta, rename variables for modelling, merge with seqmat for modeling
     meta <- meta[,names(meta) %in% c(sam_var,independent_var)]
     colnames(seqmat_integrals)[colnames(seqmat_integrals) == "variable"] <- sam_var
@@ -307,14 +330,12 @@ compare_pd <- function(asv_list, sam_var,time_var,independent_var,batch, by_asv=
     #split the data into a list of dataframes of either OTUs or clusters
     if (by_asv==FALSE){
 
-      if (is.null(asv_list$h_clust)){
-        stop("asv_list must have an h_clust element if parameter by_asv=FALSE")
-      }
       seqmat_integrals_list <- split(seqmat_integrals, f = as.factor(seqmat_integrals$cluster))
 
     } else if (by_asv==TRUE){
 
       seqmat_integrals_list <- split(seqmat_integrals, f = as.factor(seqmat_integrals$OTU))
+
     }
     #function to compute either mann whitney u test or kruskal test if testing for multiple groups
     compute_mw_test <- function(x){
@@ -328,13 +349,8 @@ compare_pd <- function(asv_list, sam_var,time_var,independent_var,batch, by_asv=
     seqmat_mwu_list <- lapply(seqmat_mwu_list, pvalue)
     seqmat_mwu_list <- p.adjust(p = seqmat_mwu_list, method = "BH")
 
-  } else if (!missing(batch)){
+  } else if (!is.null(batch)){
 
-    if (any(check_batch(meta = meta[,c(independent_var, batch)],
-                        independent_var = independent_var, batch = batch) == TRUE)){
-    stop("batch effect must be distributed among multiple levels of independent variable")
-
-    }
     #remove unecessary vectors from meta, rename variables for modelling, merge with seqmat for modeling
     meta <- meta[,names(meta) %in% c(sam_var,independent_var, batch)]
     colnames(seqmat_integrals)[colnames(seqmat_integrals) == "variable"] <- sam_var
@@ -352,10 +368,6 @@ compare_pd <- function(asv_list, sam_var,time_var,independent_var,batch, by_asv=
 
     #split into a list of dataframes by ASV or cluster
     if (by_asv==FALSE){
-
-      if (is.null(asv_list$h_clust)){
-        stop("asv_list must have an h_clust element if parameter by_asv=FALSE")
-      }
 
       seqmat_integrals_list <- split(seqmat_integrals, f = as.factor(seqmat_integrals$cluster))
 

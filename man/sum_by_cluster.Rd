@@ -4,7 +4,7 @@
 \alias{sum_by_cluster}
 \title{Sum by cluster}
 \usage{
-sum_by_cluster(asv_list, abs_abund)
+sum_by_cluster(asv_list, abs_abund = NULL)
 }
 \arguments{
 \item{asv_list}{An asv list with an h_clust element.}

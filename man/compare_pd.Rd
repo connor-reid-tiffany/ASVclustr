@@ -9,7 +9,7 @@ compare_pd(
   sam_var,
   time_var,
   independent_var,
-  batch,
+  batch = NULL,
   by_asv = FALSE,
   rescale = FALSE
 )
