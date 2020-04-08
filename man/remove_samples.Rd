@@ -4,7 +4,7 @@
 \alias{remove_samples}
 \title{Remove samples}
 \usage{
-remove_samples(asv_list, variable, variable_level)
+remove_samples(asv_list, variable = NULL, variable_level)
 }
 \arguments{
 \item{asv_list}{An asv_list object.}

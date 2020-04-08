@@ -4,7 +4,7 @@
 \alias{subset_ASVs}
 \title{Subset ASVs by read count and presence.}
 \usage{
-subset_ASVs(asv_list, sam_var, sam_threshold, abund_threshold)
+subset_ASVs(asv_list, sam_var, sam_threshold, abund_threshold = NULL)
 }
 \arguments{
 \item{asv_list}{An asv_list object.}

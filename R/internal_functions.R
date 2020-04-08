@@ -67,6 +67,7 @@ order_seqmat <- function(seqmat, meta, sam_var,time_var){
 check_batch <- function(meta, independent_var, batch){
 
   #subset meta to variables needed, split into list of data.frames by batch level
+  independent_fact <- as.factor(meta[,independent_var])
   meta <- meta[,c(independent_var,batch)]
   meta <- split(meta, f = as.factor(meta[,batch]))
 
@@ -84,8 +85,9 @@ check_batch <- function(meta, independent_var, batch){
   #iterate function across list elements
   lengths <- sapply(meta, level_lengths, independent_var)
 
+
   #create logical vector from resulting vector. If the length is 1 it means there is only
   #one independent variable level for its respective batch, which means the batch level is inseparable
-  ifelse(lengths == 1, TRUE, FALSE)
+  ifelse(lengths == length(levels(independent_fact)), TRUE, FALSE)
 
 }

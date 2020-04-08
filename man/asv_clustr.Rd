@@ -4,7 +4,7 @@
 \alias{asv_clustr}
 \title{Hierarchical clustering of ASVs.}
 \usage{
-asv_clustr(asv_list, agg_method = "ward.D2", td = "none", k)
+asv_clustr(asv_list, agg_method = "ward.D2", td = "none", k = NULL)
 }
 \arguments{
 \item{asv_list}{An asv_list.}
@@ -17,8 +17,8 @@ asv_clustr(asv_list, agg_method = "ward.D2", td = "none", k)
 "both" will use both the abundance data and time rate derivative data.
 "td_only" will use only the time rate derivative data.}
 
-\item{k}{Optional. An integer. The number of clusters you wish to group your ASVs into. If k is missing asv_clustr will return
-a dendrogram plot instead}
+\item{k}{Optional. An integer. The number of clusters you wish to group your ASVs into. If a k is not chosen asv_clustr will
+return a dendrogram plot instead}
 }
 \value{
 An asv_list object, or a dendrogram if no k is set
