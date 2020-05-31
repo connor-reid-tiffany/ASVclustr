@@ -31,7 +31,24 @@ make_asv_list <- function(seqmat, taxmat, meta){
     stop("meta must be a data.frame with identical rownames to seqmat")
   }
 
-  asv_list <- list(seqmat = seqmat, taxmat = taxmat, meta = meta)
+  #Normalize read counts
+  #calculate the geometric mean for each ASV
+  gm_mean = function(x, na.rm=TRUE){
+
+    exp(sum(log(x[x > 0]), na.rm=na.rm) / length(x))
+
+  }
+
+  geomeans <- sapply(as.data.frame(seqmat), gm_mean)
+  #divide sample ASV abundance by geomean
+  seqmat_t <- t(seqmat)
+  seqmat_r <- as.data.frame(seqmat_t/geomeans)
+  #calculate normalization factor for each sample
+  seqmat_r[seqmat_r == 0] <- NA
+  normalization_factors <- sapply(seqmat_r, median, na.rm = TRUE)
+  #divide each ASV in each sample by sample normalization factor
+  seqmat_norm <- t(sweep(x = seqmat_t, MARGIN = 2, normalization_factors,  FUN = "/"))
+  asv_list <- list(seqmat = seqmat, taxmat = taxmat, meta = meta, seqmat_norm = seqmat_norm)
 
   class(asv_list) <- append(class(asv_list), "ASVclustr")
 
@@ -72,11 +89,11 @@ melt_asv_list <- function(asv_list, ratio=FALSE, rescale=FALSE, sam_var, time_va
   #convert read counts to ratio or keep as counts
   if (ratio==FALSE){
 
-    seqmat <- as.data.frame(asv_list$seqmat)
+    seqmat <- as.data.frame(asv_list$seqmat_norm)
 
   } else if (ratio==TRUE){
 
-    seqmat <- t(asv_list$seqmat)
+    seqmat <- t(asv_list$seqmat_norm)
     seqmat <- apply(seqmat, FUN = function(x) x/sum(x), 2)
     seqmat <- as.data.frame(t(seqmat))
 
@@ -256,6 +273,7 @@ remove_samples <- function(asv_list, variable = NULL, variable_level){
 
   #establish objects
   seqmat <- as.data.frame(asv_list$seqmat)
+  seqmat_norm <- as.data.frame(asv_list$seqmat_norm)
   meta <- asv_list$meta
 
   seqmat$SampleID <- rownames(seqmat)
@@ -290,12 +308,16 @@ remove_samples <- function(asv_list, variable = NULL, variable_level){
   rownames(meta) <- meta$SampleID
   meta <- meta[,!names(meta) %in% "SampleID"]
   seqmat_sub <- seqmat_sub[,!names(seqmat_sub) %in% 'SampleID']
-
+  #now remove samples from seqmat norm
+  seqmat_norm_sub <- seqmat_norm[rownames(seqmat_sub),]
+  seqmat_norm_sub[] <- lapply(seqmat_norm_sub, function(x) if(is.factor(x)) factor(x) else x)
   #removes ASVs that are 0 across all samples after subsetting
   seqmat_sub <- seqmat_sub[, colSums(seqmat_sub)!= 0]
+  seqmat_norm_sub <- seqmat_norm_sub[,colSums(seqmat_norm_sub)!=0]
 
   #replace seqmat and meta in asv list with subsetted seqmat and meta
   asv_list$seqmat <- as.matrix(seqmat_sub)
+  asv_list$seqmat_norm <- as.matrix(seqmat_norm_sub)
   asv_list$meta <- meta
 
   return(asv_list)
@@ -378,4 +400,49 @@ subset_ASVs <- function(asv_list, sam_var, sam_threshold, abund_threshold = NULL
   asv_list$seqmat <- as.matrix(seqmat)
 
   return(asv_list)
+}
+
+#' Remove taxa
+#'
+#' @description Remove ASVs from seqmat by taxonomic value.
+#' @param asv_list An asv_list object.
+#' @param taxa A string or character vector. The taxa to remove, e.g. "Clostridia", "Escherichia", etc.
+#' @importFrom dplyr left_join
+#' @importFrom dplyr group_by
+#' @importFrom dplyr summarise_if
+#' @importFrom magrittr %>%
+#' @importFrom methods isClass
+#' @return an asv_list object
+#'
+#' @examples
+#'
+#' asv_list_subset_abund <- remove_samples(asv_list=asv_list,
+#' variable_level = c("EVelazquez0717_480.1.B", "EVelazquez0717_480.1.C"))
+#'
+#' asv_list_subset_<- remove_samples(asv_list = asv_list, variable = "Treatment",
+#' variable_level = "Dirty-A")
+#'
+#'
+remove_taxa <- function(asv_list, taxa){
+
+  #set objects
+  seqmat <- asv_list$seqmat
+  taxmat <- asv_list$taxmat
+
+  #iterate an indexing function across the taxa matrix
+  taxa_to_remove <- apply(X = taxmat, MARGIN = 2, FUN = function(x) x[x %in% taxa])
+  #keep list elements that are not 0 and then gather names attribute from lists, convert to a single
+  #character vector
+  taxa_to_remove <- unlist(lapply(X = taxa_to_remove[lapply(taxa_to_remove,length) > 0],
+                                  FUN = names))
+  #use the character vector to subset seqmat by columns
+  seqmat <- seqmat[,!colnames(seqmat) %in% taxa_to_remove]
+  #and then use the character vector to subset taxmat by rows
+  taxmat <- taxmat[!rownames(taxmat) %in% taxa_to_remove,]
+  #replace seqmat and taxmat in asv_list with new subsetted versions
+  asv_list$seqmat <- seqmat
+  asv_list$taxmat <- taxmat
+
+  return(asv_list)
+
 }

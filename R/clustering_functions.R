@@ -159,10 +159,10 @@ calc_td <- function(asv_list, sam_var, time_var){
 
 }
 
-#' Compare population dynamics between groups.
+#' Compute population dynamics across samples
 #'
-#' @description Compares mean population dynamics of either clusters to determine if an experimental variable
-#' or batch introduces noise, or individual ASVs to determine if an independent variable effects population dynamics.
+#' @description Computes the integral of the timecourse for each ASV in each sample and returns this as a nested list
+#' in as_list
 #' @param asv_list An asv_list.
 #' @param sam_var A string. The metadata variable for samples.
 #' @param time_var A string. The metadata variable for timepoints.
@@ -193,33 +193,33 @@ calc_td <- function(asv_list, sam_var, time_var){
 #' asv_list$meta <- new_meta
 #'
 #' }
-#' pd_cage_effect <- compare_pd(asv_list = asv_list, sam_var = "Sample",
+#' pd_cage_effect <- compute_pd(asv_list = asv_list, sam_var = "Sample",
 #' time_var = "Timepoint",independent_var = "Treatment", batch="batch")
 #'
-#' pd_cage_effect_rescale <- compare_pd(asv_list = asv_list, sam_var = "Sample",
+#' pd_cage_effect_rescale <- compute_pd(asv_list = asv_list, sam_var = "Sample",
 #' time_var = "Timepoint", independent_var = "Treatment", batch="batch", rescale = TRUE)
 #'
-#' pd_cage_effect_ASV <- compare_pd(asv_list = asv_list, sam_var = "Sample",
+#' pd_cage_effect_ASV <- compute_pd(asv_list = asv_list, sam_var = "Sample",
 #' time_var = "Timepoint", independent_var = "Treatment", batch="batch", by_asv = TRUE)
 #'
-#' pd_cage_effect_ASV_rescale <- compare_pd(asv_list = asv_list, sam_var = "Sample",
+#' pd_cage_effect_ASV_rescale <- compute_pd(asv_list = asv_list, sam_var = "Sample",
 #' time_var = "Timepoint",independent_var = "Treatment",
 #' batch="batch", by_asv = TRUE, rescale = TRUE)
 #'
-#' pd_Treatment <- compare_pd(asv_list = asv_list, sam_var = "Sample",
+#' pd_Treatment <- compute_pd(asv_list = asv_list, sam_var = "Sample",
 #' time_var = "Timepoint", independent_var = "Treatment")
 #'
-#' pd_Treatment_rescale <- compare_pd(asv_list = asv_list, sam_var = "Sample",
+#' pd_Treatment_rescale <- compute_pd(asv_list = asv_list, sam_var = "Sample",
 #' time_var = "Timepoint", independent_var = "Treatment", rescale = TRUE)
 #'
-#' pd_Treatment_ASV <- compare_pd(asv_list = asv_list, sam_var = "Sample",
+#' pd_Treatment_ASV <- compute_pd(asv_list = asv_list, sam_var = "Sample",
 #' time_var = "Timepoint", independent_var = "Treatment", by_asv = TRUE)
 #'
-#' pd_Treatment_ASV_rescale <- compare_pd(asv_list = asv_list, sam_var = "Sample",
+#' pd_Treatment_ASV_rescale <- compute_pd(asv_list = asv_list, sam_var = "Sample",
 #' time_var = "Timepoint", independent_var = "Treatment", by_asv = TRUE, rescale = TRUE)
 #'
 #'
-compare_pd <- function(asv_list, sam_var, time_var, independent_var, batch = NULL, by_asv=FALSE, rescale=FALSE){
+compute_pd <- function(asv_list, sam_var, time_var, independent_var = NULL, batch = NULL, by_asv=FALSE, rescale=FALSE){
 
   if (!isClass(asv_list, Class = c("list", "ASVclustr"))){
 
@@ -233,6 +233,15 @@ compare_pd <- function(asv_list, sam_var, time_var, independent_var, batch = NUL
 
   }
 
+  if (is.null(independent_var) && !is.null(batch)){
+
+    stop("If testing only one covariate, only use the parameter independent_var, even if this covariate is a batch effect.
+    Use independent_var and batch when testing the affect of a batch on another independent covariate")
+
+  }
+
+  if (!is.null(independent_var)){
+
   if (!is.null(batch) && any(check_batch(meta = asv_list$meta[,c(independent_var, batch)],
                       independent_var = independent_var, batch = batch) == FALSE)){
 
@@ -240,8 +249,9 @@ compare_pd <- function(asv_list, sam_var, time_var, independent_var, batch = NUL
 
   }
 
+}
   #define variables
-  seqmat <- as.data.frame(asv_list$seqmat)
+  seqmat <- as.data.frame(asv_list$seqmat_norm)
   meta <- asv_list$meta
   seqmat$SampleID <- rownames(seqmat)
 
@@ -317,9 +327,10 @@ compare_pd <- function(asv_list, sam_var, time_var, independent_var, batch = NUL
   #between independent variables
   if (is.null(batch)){
     #remove unecessary vectors from meta, rename variables for modelling, merge with seqmat for modeling
+    if (!is.null(independent_var)){
     meta <- meta[,names(meta) %in% c(sam_var,independent_var)]
     colnames(seqmat_integrals)[colnames(seqmat_integrals) == "variable"] <- sam_var
-    seqmat_integrals<- left_join(seqmat_integrals, meta,sam_var)
+    seqmat_integrals <- left_join(seqmat_integrals, meta,sam_var)
 
     colnames(seqmat_integrals)[colnames(seqmat_integrals) == independent_var] <- "independent_var"
     seqmat_integrals[,"independent_var"] <- as.factor(seqmat_integrals[,"independent_var"])
@@ -327,6 +338,11 @@ compare_pd <- function(asv_list, sam_var, time_var, independent_var, batch = NUL
     #remove duplicate rows
     seqmat_integrals <- distinct(seqmat_integrals)
 
+    } else if (is.null(independent_var)){
+
+      seqmat_integrals <- seqmat_integrals
+
+    }
     #split the data into a list of dataframes of either OTUs or clusters
     if (by_asv==FALSE){
 
@@ -337,17 +353,6 @@ compare_pd <- function(asv_list, sam_var, time_var, independent_var, batch = NUL
       seqmat_integrals_list <- split(seqmat_integrals, f = as.factor(seqmat_integrals$OTU))
 
     }
-    #function to compute either mann whitney u test or kruskal test if testing for multiple groups
-    compute_mw_test <- function(x){
-
-      x <- kruskal_test(data = x, value ~ independent_var)
-      return(x)
-
-    }
-    #iterate across each element and correct p value for multiple tests
-    seqmat_mwu_list <- lapply(seqmat_integrals_list, compute_mw_test)
-    seqmat_mwu_list <- lapply(seqmat_mwu_list, pvalue)
-    seqmat_mwu_list <- p.adjust(p = seqmat_mwu_list, method = "BH")
 
   } else if (!is.null(batch)){
 
@@ -376,20 +381,450 @@ compare_pd <- function(asv_list, sam_var, time_var, independent_var, batch = NUL
       seqmat_integrals_list <- split(seqmat_integrals, f = as.factor(seqmat_integrals$OTU))
 
       }
-    #function to compute a stratified mann whitney u test or kruskal test for multiple groups
-    compute_vanelteren <- function(x){
-
-      x <- kruskal_test(data = x, value ~ independent_var | batch)
-      return(x)
-
-    }
-    #iterate to compute stratified test and correct for multiple testing
-    seqmat_mwu_list <- lapply(seqmat_integrals_list, compute_vanelteren)
-    seqmat_mwu_list <- lapply(seqmat_mwu_list, pvalue)
-    seqmat_mwu_list<- p.adjust(p = seqmat_mwu_list, method = "BH")
 
   }
 
-  return(seqmat_mwu_list)
+  asv_list$seqmat_integrals <- seqmat_integrals_list
+
+  return(asv_list)
 
 }
+
+
+#' compare_pd
+#' @description Compare cluster/ ASV integral means using a binomial-gamma hurdle model on median of ratios normalized
+#' sequencing counts
+#' @param asv_list an asv_list object
+#' @param batch a boolean. TRUE if stratifying out a batch effect from another covariate, otherwise FALSE
+#' @param calc_CI a boolean. TRUE will calculate 95% confidence intervals using non parametric bootstrapping
+#' @param boot_k an integer. default is NULL. If calc_CI is TRUE, boot_k is the number of bootstrap replicates
+#' to perform. if sample sizes are insufficient for number of bootstraps, a vector of ASVs/ clusters that had
+#' insufficient sample size will be returned
+#' @param groups a character vector. default is NULL. a character vector of strings denoting levels of an
+#' independent covariate. the first string in the vector will be used as the reference group that all
+#' other groups will be compared to.
+#' @importFrom stats glm
+#' @importFrom stats plogis
+#' @importFrom broom tidy
+#' @importFrom tibble tibble
+#' @importFrom boot boot
+#' @importFrom boot boot.ci
+#' @importFrom dplyr group_by
+#' @importFrom dplyr summarise
+#' @importFrom magrittr %>%
+#' @return a dataframe with coefficients for the binomial, gamma, and hurdle models, means, p values and adjusted p values
+#' and confidence intervals if calc_CI is TRUE
+#' @export
+#' @examples
+#'
+
+compare_pd <- function(asv_list, batch=FALSE, calc_CI=FALSE, boot_k=NULL,groups=NULL){
+
+  #set object
+  seqmat_integrals_list <- asv_list$seqmat_integrals
+
+  #function to remove ASVs that are zero across all samples in a variable level
+  remove_zero_ASVs <- function(x,variable){
+    #create variable for whether or not an ASV is present in a sample
+    x$non_zero <- ifelse(x$value > 0, 1, 0)
+    #for the gamma distribution to model the continuous response variable of ASV population
+    #during a timecourse (quantified by the integral of the abundance curve), we remove samples which
+    #have an integral of zero
+    non_zero_only <- subset(x, non_zero==1)
+    non_zero_only[] <- lapply(non_zero_only, function(x) if(is.factor(x)) factor(x) else x)
+    #this control flow step sets dataframes within a list to NULL if one factor level is all 0 values
+    if (length(levels(non_zero_only[,variable])) <= length(levels(x[,variable])) - 1) {
+
+      return(NULL)
+
+    } else if (length(levels(non_zero_only[,variable])) == length(levels(x[,variable]))){
+
+      return(x)
+
+    }
+
+  }
+
+  #remove ASVs where there is a variable level that contains all 0 values for the integral if comparison is chosen
+  if (!is.null(groups)){
+
+    if (batch == FALSE){
+
+      seqmat_integrals_list <- lapply(seqmat_integrals_list, remove_zero_ASVs, variable = "independent_var")
+
+    } else if (batch == TRUE){
+
+      seqmat_integrals_list <- lapply(seqmat_integrals_list, remove_zero_ASVs, variable = "independent_var")
+
+      seqmat_integrals_list <- lapply(seqmat_integrals_list, remove_zero_ASVs, variable = "batch")
+
+    }
+
+    seqmat_integrals_list <- seqmat_integrals_list[lapply(seqmat_integrals_list, is.null)==FALSE]
+
+  } else if (is.null(groups)){
+
+    seqmat_integrals_list <- lapply(seqmat_integrals_list, function(x) cbind(x, non_zero = ifelse(x$value > 0, 1, 0)))
+
+  }
+
+  #set variable names for bootstrap repetition check function
+  if (calc_CI == TRUE){
+
+    if (is.null(groups)){
+
+      variable <- NULL
+
+    } else if (!is.null(groups)){
+
+      if (batch == FALSE){
+
+        variable <- "independent_var"
+
+      } else if (batch == TRUE){
+
+        variable <- "batch"
+
+      }
+
+    }
+
+    boot_k <- boot_k
+
+    #returns TRUE if sample size is sufficient for number of selected bootstraps, FALSE if not
+    validate_reps <- function(x,variable){
+
+      #remove rows which are zero
+      x <- x[x$value > 0,]
+
+      if (is.null(variable)){
+
+        #group by variable, then tally sample size by group
+        x <- x %>%
+          tally()
+
+      } else if (!is.null(variable)){
+
+        #set column name for grouping
+        colnames(x)[colnames(x) == variable] <- "variable"
+        #group by variable, then tally sample size by group
+        x <- x %>%
+          group_by(variable) %>%
+          tally()
+
+      }
+
+      #return logical of whether sample size is too low for R bootstraps
+      x <- boot_k < choose(2*x$n - 1, x$n)
+
+      x
+
+    }
+
+    #iterate on seqmat_integrals
+    boot_check_list <- lapply(seqmat_integrals_list, validate_reps, variable=variable)
+
+    boot_check <- boot_check_list[lapply(boot_check_list, function(x) any(x == FALSE))==TRUE]
+
+    if (length(boot_check) > 0){
+
+      message("One or more response variables have an insufficient sample size for selected number of bootstraps.
+              Returning a vector of response variables with insufficient sample size")
+
+      return(asv_vector <- names(boot_check))
+
+    } else if (length(boot_check) == 0){
+
+
+    }
+
+  }
+
+  #flow control for creating a model formula
+  if (is.null(groups)){
+
+    bin_model <- non_zero ~ 1
+    gamma_model <- value ~ 1
+
+  } else if (!is.null(groups)){
+
+    if (batch == FALSE){
+
+      bin_model <- non_zero ~ independent_var
+      gamma_model <- value ~ independent_var
+
+    } else if (batch == TRUE){
+
+      bin_model <- non_zero ~ independent_var + batch
+      gamma_model <- value ~ independent_var + batch
+
+    }
+
+  }
+
+  #if a comparison vector is provided subset the variable to those two levels
+  if (is.null(groups)){
+
+    seqmat_integrals_list
+
+  } else if (!is.null(groups)){
+
+    seqmat_integrals_list <- lapply(seqmat_integrals_list, function(x) subset(x, independent_var %in% groups))
+    #reorder the factor in the order provided in the comparison vector
+    seqmat_integrals_list <- lapply(seqmat_integrals_list, function (x){ x$independent_var <- factor(x$independent_var, levels = groups); x})
+
+  }
+
+
+
+  #create a function for the model to iterate across the list
+  bin_gamma_hurdle <- function(x){
+
+    #fit a binomial logistic regression with the binary presence or absense as the response
+    # to predict the probability of an ASV being present during the timecourse
+    bin_mod <- glm(formula = bin_model, data = x, family = binomial(link = logit))
+    #fit a gamma GLM to the integral values
+    gamma_mod <- glm(formula = gamma_model, data = subset(x, non_zero==1),
+                     family = Gamma(link = "log"))
+    #extract binomial model coefficients
+    bin_coef <- tidy(bin_mod)
+    bin_coef$model <- "binomial"
+    #extract gamma coefficients
+    gamma_coef <- tidy(gamma_mod)
+    gamma_coef$model <- "gamma"
+
+    mod <- rbind(gamma_coef, bin_coef)
+    #the probabiliy of the NULL hypothesis where ASV integrals are the same between groups is dependent on the probability of the
+    #NULL hypothesis that groups do not have an effect on the presence or absence of an ASV, so the p value from the
+    #binomial model is multiplied by the p value of the gamma model
+    combined_pval <- tibble(p.value = bin_coef$p.value * gamma_coef$p.value, model = "hurdle",
+                            term = gamma_coef$term, estimate = NA, std.error = NA, statistic = NA)
+    #combine p_values and OTU into a data.frame
+    mod <- rbind(mod, combined_pval)
+
+  }
+
+
+  compute_CI <- function(x, i){
+
+    x <- x[i, ]
+    #fit a binomial logistic regression with the binary presence or absense as the response
+    # to predict the probability of an ASV being present during the timecourse
+    bin_mod <- glm(formula = bin_model, data = x, family = binomial(link = logit))
+    #fit a gamma GLM to the integral values
+    gamma_mod <- glm(formula = gamma_model, data = subset(x, non_zero==1),
+                     family = Gamma(link = "log"))
+    #compute a CI on the model intercept, i.e. across all samples. useful for measuring dispersion
+    if (is.null(variable)){
+      #tidy the models into tibbles. the only observation in this case is the intercept coefficients
+      bin_coef <- tidy(bin_mod)
+      gamma_coef <- tidy(gamma_mod)
+
+      #if a comparison between groups is being performed, remove the intercept coefficients to compute CI on desired model term
+    } else if (!is.null(variable)){
+      #tidy the models into tibbles and remove intercept observations
+      bin_coef <- tidy(bin_mod)
+      #bin_coef <- bin_coef[-1,]
+      gamma_coef <- tidy(gamma_mod)
+      #gamma_coef <- gamma_coef[-1,]
+
+    }
+    #return model estimates to original scale. binomial model used a logit link so take the inverse
+    #gamma model used a log link so take the exponent.
+    #take the sum of the logarithm of both estimate coefficients to compute the product. this is the statistic being bootstrapped
+    bin_est <- plogis(bin_coef$estimate)
+    gamma_est <- exp(gamma_coef$estimate)
+    exp(log(bin_est) + log(gamma_est))
+
+  }
+  #iterate model across the list
+  mod_list <- lapply(seqmat_integrals_list, bin_gamma_hurdle)
+  #determine if we are comparing OTU means or cluster means
+  cluster_or_OTU <- lapply(seqmat_integrals_list, function(x) colnames(x)=="cluster")
+  cluster_or_OTU <- do.call("rbind", cluster_or_OTU)
+  #set a variable to join the model dataframes and CI dataframes based on whether it is clusters or OTUs
+  if (any(cluster_or_OTU==TRUE)==TRUE){
+
+    name_variable <- "cluster"
+
+  } else if (any(cluster_or_OTU==TRUE)==FALSE){
+
+    name_variable <- "OTU"
+
+  }
+  #create list of OTU or cluster names to eventually join the mod list to the CI list
+  names_df <- data.frame(names(mod_list))
+  colnames(names_df)[1] <- name_variable
+  names_list <- split(names_df, f = as.factor(names_df[,name_variable]))
+  #combine names to mod list dataframes and then melt into longform. Then rename columns in each dataframe
+  mod_list <- lapply(mod_list, `row.names<-`, NULL)
+  names_list <- lapply(names_list, `row.names<-`, NULL)
+  mod_list <- Map(f = cbind, mod_list, names_list)
+  mod_list <- lapply(mod_list, function(x){ x$model_term <- paste(x$model, "_", x$term) ; x})
+
+  #compute an adjusted p value for FDR for each model p value
+  #compute padj for binomial model
+  mod_list_binomial <- lapply(mod_list, function(x) subset(x, model=="binomial"))
+  mod_list_binomial <- do.call("rbind", mod_list_binomial)
+  mod_list_binomial <- split(mod_list_binomial, f = as.factor(mod_list_binomial$term))
+  mod_list_binomial <- lapply(mod_list_binomial, function(x) {x$padj <- p.adjust(p = x$p.value, method = "BH"); x})
+  mod_list_binomial <- do.call("rbind", mod_list_binomial)
+  mod_list_binomial$term <- rownames(mod_list_binomial)
+  #compute padj for gamma model
+  mod_list_gamma <- lapply(mod_list, function(x) subset(x, model=="gamma"))
+  mod_list_gamma <- do.call("rbind", mod_list_gamma)
+  mod_list_gamma <- split(mod_list_gamma, f = as.factor(mod_list_gamma$term))
+  mod_list_gamma <- lapply(mod_list_gamma, function(x) {x$padj <- p.adjust(p = x$p.value, method = "BH"); x})
+  mod_list_gamma <- do.call("rbind", mod_list_gamma)
+  mod_list_gamma$term <- rownames(mod_list_gamma)
+  #compute padj for hurdle
+  mod_list_hurdle <- lapply(mod_list, function(x) subset(x, model=="hurdle"))
+  mod_list_hurdle <- do.call("rbind", mod_list_hurdle)
+  mod_list_hurdle <- split(mod_list_hurdle, f = as.factor(mod_list_hurdle$term))
+  mod_list_hurdle <- lapply(mod_list_hurdle, function(x) {x$padj <- p.adjust(p = x$p.value, method = "BH"); x})
+  mod_list_hurdle <- do.call("rbind", mod_list_hurdle)
+  mod_list_hurdle$term <- rownames(mod_list_hurdle)
+  #row bind each of the padj dataframes into a single dataframe
+  mod_list_padj <- rbind(mod_list_binomial, mod_list_gamma, mod_list_hurdle)
+  mod_list_padj$term <- gsub(mod_list_padj$term, pattern = "\\..*", replacement = "")
+  mod_list_padj$model_term <- paste(mod_list_padj$model, "_", mod_list_padj$term)
+  #remove uneccessary columns and then split into a list by either cluster or OTU
+  mod_list_padj <- mod_list_padj[,c("model", name_variable, "padj", "term", "model_term")]
+  mod_list_padj <- split(mod_list_padj, f = as.factor(mod_list_padj[,name_variable]))
+  #remove cluster/OTU column and then match the adjusted p values to the corresponding data.frames in mod_list
+  mod_list_padj <- lapply(mod_list_padj, function(x) x[!names(x) %in% c(name_variable, "term", "model")])
+  mod_list <- Map(left_join, mod_list, mod_list_padj, by = "model_term")
+
+  return(mod_list)
+  #compute a confidence interval using non-parametric bootstrapping
+  if (calc_CI == TRUE){
+    #extract model term names to use in CI_list
+    term_names <- levels(as.factor(mod_list$`1`$term))
+    #iterate bootstrap function across list, calculate and extract CI
+    CI_list <- lapply(seqmat_integrals_list, boot, compute_CI, R = boot_k)
+    #this function gets bca confidence intervals for all model terms including the intercept
+    getCI <- function(x,i) {
+
+      ci <- boot.ci(x,index=i)
+      # extract info for bca
+      ci <- t(sapply(ci["bca"],function(x) tail(c(x),2)))
+      # combine with metadata: CI method, index
+      ci_df <- cbind(i,rownames(ci),as.data.frame(ci))
+      colnames(ci_df) <- c("term","method","lower","upper")
+      ci_df
+
+    }
+
+    #suppressWarnings is used because the model wasn't a t distribution so getCI does not need to be supplied with
+    #bootstrap variances
+    CI_list <- suppressWarnings(lapply(CI_list, function(x) do.call(rbind,lapply(1:length(levels(as.factor(mod_list[[1]]$term))),getCI,x = x))))
+    #create list of OTU or cluster names to eventually join the CI list to the model list
+    names_df <- data.frame(names(CI_list))
+    colnames(names_df)[1] <- name_variable
+    names_list <- split(names_df, f = as.factor(names_df[,name_variable]))
+    #combine names to CI list dataframes and then melt into longform. Then rename columns in each dataframe
+    CI_list <- Map(f = cbind, CI_list, names_list)
+    CI_list <- do.call("rbind", CI_list)
+    CI_list$term <- term_names
+    CI_list$term_cluster <- paste(CI_list$term, "_", CI_list[,name_variable])
+    CI_list <- CI_list[,!names(CI_list) %in% c("cluster","term")]
+    #join the model list and CI list by OTU/cluster names
+    mod_list <- do.call("rbind", mod_list)
+    mod_list$term_cluster <- paste(mod_list$term, "_", mod_list[,name_variable])
+    #join CI_list to mod_list
+    mod_df <- left_join(mod_list, CI_list, by = "term_cluster")
+    mod_df <- mod_df[,!names(mod_df) %in% c("term_cluster", "model_term")]
+
+  } else if (calc_CI == FALSE){
+
+    #row bind all of the data.frames into a single tidy dataframe
+    mod_df <- do.call("rbind", mod_list)
+
+  }
+
+  #clean up the term column using regex to remove words/ parenthesis
+  mod_df$term <- gsub(mod_df$term, pattern = "\\(", replacement = "")
+
+  mod_df$term <- gsub(mod_df$term, pattern = "\\)", replacement = "")
+
+  mod_df$term <- gsub(mod_df$term, pattern = "independent_var", replacement = "")
+
+  mod_df$name_variable <- mod_df[,name_variable]
+
+  #create term + name_variable column to left join means to mod_df
+  mod_df$term_namevar <- paste0(mod_df$term, "", mod_df$name_variable)
+
+  #calculate base mean, term means, and fold changes where appropriate
+  seqmat_integrals <- do.call("rbind", seqmat_integrals_list)
+
+  if (name_variable == "cluster"){
+
+    intercept_mean <- seqmat_integrals %>%
+
+      group_by(cluster) %>%
+
+      summarise(group_means = mean(value))
+
+  } else if (name_variable == "OTU"){
+
+    intercept_mean <- seqmat_integrals %>%
+
+      group_by(OTU) %>%
+
+      summarise(group_means = mean(value))
+
+  }
+
+  intercept_mean$term <- "Intercept"
+  colnames(intercept_mean)[colnames(intercept_mean) == name_variable] <- "name_variable"
+  intercept_mean$term_namevar <- paste0(intercept_mean$term, "", intercept_mean$name_variable)
+  #join intercept mean to mod_df
+  mod_df$intercept_means <- intercept_mean$group_means[match(mod_df$term_namevar, intercept_mean$term_namevar)]
+
+  if (!is.null(groups)){
+
+    #set base mean variable by taking the first element of the groups vector
+    base_group <- groups[1]
+    comparison_group <- groups[-1]
+
+    mod_df$base_group <- base_group
+
+    if (name_variable == "cluster"){
+
+      group_means <- seqmat_integrals %>%
+
+        group_by(cluster, independent_var) %>%
+
+        summarise(group_means = mean(value))
+
+    } else if (name_variable == "OTU"){
+
+      group_means <- seqmat_integrals %>%
+
+        group_by(OTU, independent_var) %>%
+
+        summarise(group_means = mean(value))
+
+    }
+
+    base_means <- subset(group_means, independent_var==base_group)
+    colnames(base_means)[colnames(base_means) == name_variable] <- "name_variable"
+    group_means <- subset(group_means, independent_var %in% comparison_group)
+
+    colnames(group_means)[colnames(group_means) == name_variable] <- "name_variable"
+    group_means$term_namevar <- paste0(group_means$independent_var, "", group_means$name_variable)
+
+
+    mod_df$base_mean <- base_means$group_means[match(mod_df$name_variable, base_means$name_variable)]
+    mod_df$term_means <- group_means$group_means[match(mod_df$term_namevar, group_means$term_namevar)]
+    mod_df$term_means[is.na(mod_df$term_means)] <- mod_df$intercept_means[!is.na(mod_df$intercept_means)]
+
+    mod_df <- mod_df[, !names(mod_df) %in% "intercept_means"]
+  }
+
+  mod_df <- mod_df[,!names(mod_df) %in% c("term_namevar", "name_variable")]
+
+  return(mod_df)
+
+}
+
