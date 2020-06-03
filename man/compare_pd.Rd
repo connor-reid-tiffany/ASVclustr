@@ -2,78 +2,40 @@
 % Please edit documentation in R/clustering_functions.R
 \name{compare_pd}
 \alias{compare_pd}
-\title{Compare population dynamics between groups.}
+\title{compare population dynamics across samples}
 \usage{
 compare_pd(
   asv_list,
-  sam_var,
-  time_var,
-  independent_var,
-  batch = NULL,
-  by_asv = FALSE,
-  rescale = FALSE
+  batch = FALSE,
+  calc_CI = FALSE,
+  boot_k = NULL,
+  groups = NULL
 )
 }
 \arguments{
-\item{asv_list}{An asv_list.}
+\item{asv_list}{an asv_list object}
 
-\item{sam_var}{A string. The metadata variable for samples.}
+\item{batch}{a boolean. TRUE if stratifying out a batch effect from another covariate, otherwise FALSE}
 
-\item{time_var}{A string. The metadata variable for timepoints.}
+\item{calc_CI}{a boolean. TRUE will calculate 95 percent confidence intervals using non parametric bootstrapping}
 
-\item{independent_var}{A string. The metadata variable for the experimental variable(s).}
+\item{boot_k}{an integer. default is NULL. If calc_CI is TRUE, boot_k is the number of bootstrap replicates
+to perform. if sample sizes are insufficient for number of bootstraps, a vector of ASVs or clusters that had
+insufficient sample size will be returned}
 
-\item{batch}{Optional. A string. A metadata variable for a batch effect. The batch effect must be separate
-from the independent variable, i.e. levels of the batch variable must be distributed among the levels of
-the idependent variable.}
-
-\item{by_asv}{A boolean. If TRUE, difference in integral means will be computed for every ASV. If FALSE
-difference in integral means will be computed for each cluster. Default is FALSE}
-
-\item{rescale}{A boolean. If TRUE, each ASV for each sample will be rescaled to a maximum value of 1 and
-minimum value of 0. Otherwise raw read counts will be used. Default is FALSE}
+\item{groups}{a character vector. default is NULL. a character vector of strings denoting levels of an
+independent covariate. the first string in the vector will be used as the reference group that all
+other groups will be compared to.}
 }
 \value{
-An asv_list.
+a data.frame
 }
 \description{
-Compares mean population dynamics of either clusters to determine if an experimental variable
-or batch introduces noise, or individual ASVs to determine if an independent variable effects population dynamics.
+Compare cluster orASV integral means using a binomial-gamma hurdle model on median of ratios normalized
+sequencing counts
 }
 \examples{
 
-\dontshow{
-new_meta <- asv_list$meta
-
-new_meta$batch <- c("A","B","C","D")
-
-asv_list$meta <- new_meta
-
-}
-pd_cage_effect <- compare_pd(asv_list = asv_list, sam_var = "Sample",
-time_var = "Timepoint",independent_var = "Treatment", batch="batch")
-
-pd_cage_effect_rescale <- compare_pd(asv_list = asv_list, sam_var = "Sample",
-time_var = "Timepoint", independent_var = "Treatment", batch="batch", rescale = TRUE)
-
-pd_cage_effect_ASV <- compare_pd(asv_list = asv_list, sam_var = "Sample",
-time_var = "Timepoint", independent_var = "Treatment", batch="batch", by_asv = TRUE)
-
-pd_cage_effect_ASV_rescale <- compare_pd(asv_list = asv_list, sam_var = "Sample",
-time_var = "Timepoint",independent_var = "Treatment",
-batch="batch", by_asv = TRUE, rescale = TRUE)
-
-pd_Treatment <- compare_pd(asv_list = asv_list, sam_var = "Sample",
-time_var = "Timepoint", independent_var = "Treatment")
-
-pd_Treatment_rescale <- compare_pd(asv_list = asv_list, sam_var = "Sample",
-time_var = "Timepoint", independent_var = "Treatment", rescale = TRUE)
-
-pd_Treatment_ASV <- compare_pd(asv_list = asv_list, sam_var = "Sample",
-time_var = "Timepoint", independent_var = "Treatment", by_asv = TRUE)
-
-pd_Treatment_ASV_rescale <- compare_pd(asv_list = asv_list, sam_var = "Sample",
-time_var = "Timepoint", independent_var = "Treatment", by_asv = TRUE, rescale = TRUE)
-
-
+asv_list <- compute_pd(asv_list = asv_list, sam_var = "Sample", time_var = "Timepoint", independent_var = "Treatment")
+con_intervals <- compare_pd(asv_list = asv_list, calc_CI = TRUE, boot_k = 400, groups = c("Dirty-A", "Clean-A"))
 }

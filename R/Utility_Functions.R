@@ -336,7 +336,7 @@ remove_samples <- function(asv_list, variable = NULL, variable_level){
 #' @importFrom magrittr %>%
 #' @importFrom methods isClass
 #' @return an asv_list object
-#'
+#' @export
 #' @examples
 #'
 #' asv_list_subset_abund <- remove_samples(asv_list=asv_list,
@@ -413,7 +413,7 @@ subset_ASVs <- function(asv_list, sam_var, sam_threshold, abund_threshold = NULL
 #' @importFrom magrittr %>%
 #' @importFrom methods isClass
 #' @return an asv_list object
-#'
+#' @export
 #' @examples
 #'
 #' asv_list_subset_abund <- remove_samples(asv_list=asv_list,

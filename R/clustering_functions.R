@@ -391,14 +391,18 @@ compute_pd <- function(asv_list, sam_var, time_var, independent_var = NULL, batc
 }
 
 
-#' compare_pd
-#' @description Compare cluster/ ASV integral means using a binomial-gamma hurdle model on median of ratios normalized
+
+
+
+#' compare population dynamics across samples
+#'
+#' @description Compare cluster orASV integral means using a binomial-gamma hurdle model on median of ratios normalized
 #' sequencing counts
 #' @param asv_list an asv_list object
 #' @param batch a boolean. TRUE if stratifying out a batch effect from another covariate, otherwise FALSE
-#' @param calc_CI a boolean. TRUE will calculate 95% confidence intervals using non parametric bootstrapping
+#' @param calc_CI a boolean. TRUE will calculate 95 percent confidence intervals using non parametric bootstrapping
 #' @param boot_k an integer. default is NULL. If calc_CI is TRUE, boot_k is the number of bootstrap replicates
-#' to perform. if sample sizes are insufficient for number of bootstraps, a vector of ASVs/ clusters that had
+#' to perform. if sample sizes are insufficient for number of bootstraps, a vector of ASVs or clusters that had
 #' insufficient sample size will be returned
 #' @param groups a character vector. default is NULL. a character vector of strings denoting levels of an
 #' independent covariate. the first string in the vector will be used as the reference group that all
@@ -412,11 +416,12 @@ compute_pd <- function(asv_list, sam_var, time_var, independent_var = NULL, batc
 #' @importFrom dplyr group_by
 #' @importFrom dplyr summarise
 #' @importFrom magrittr %>%
-#' @return a dataframe with coefficients for the binomial, gamma, and hurdle models, means, p values and adjusted p values
-#' and confidence intervals if calc_CI is TRUE
+#' @return a data.frame
 #' @export
 #' @examples
 #'
+#' asv_list <- compute_pd(asv_list = asv_list, sam_var = "Sample", time_var = "Timepoint", independent_var = "Treatment")
+#' con_intervals <- compare_pd(asv_list = asv_list, calc_CI = TRUE, boot_k = 400, groups = c("Dirty-A", "Clean-A"))
 
 compare_pd <- function(asv_list, batch=FALSE, calc_CI=FALSE, boot_k=NULL,groups=NULL){
 
@@ -706,9 +711,9 @@ compare_pd <- function(asv_list, batch=FALSE, calc_CI=FALSE, boot_k=NULL,groups=
     getCI <- function(x,i) {
 
       ci <- boot.ci(x,index=i)
-      # extract info for bca
+      #extract info for bca
       ci <- t(sapply(ci["bca"],function(x) tail(c(x),2)))
-      # combine with metadata: CI method, index
+      #combine with metadata: CI method, index
       ci_df <- cbind(i,rownames(ci),as.data.frame(ci))
       colnames(ci_df) <- c("term","method","lower","upper")
       ci_df
@@ -742,7 +747,7 @@ compare_pd <- function(asv_list, batch=FALSE, calc_CI=FALSE, boot_k=NULL,groups=
 
   }
 
-  #clean up the term column using regex to remove words/ parenthesis
+  #clean up the term column using regex to remove words and parenthesis
   mod_df$term <- gsub(mod_df$term, pattern = "\\(", replacement = "")
 
   mod_df$term <- gsub(mod_df$term, pattern = "\\)", replacement = "")
@@ -827,4 +832,5 @@ compare_pd <- function(asv_list, batch=FALSE, calc_CI=FALSE, boot_k=NULL,groups=
   return(mod_df)
 
 }
+
 

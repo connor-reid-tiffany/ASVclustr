@@ -1,6 +1,6 @@
 Package: ASVclustr
 Title: Clustering and analysis of amplicon sequence variants by population dynamics
-Version: 0.0.0.9000
+Version: 0.0.0.9001
 Authors@R: 
     person(given = "Connor",
            family = "Tiffany",
@@ -17,7 +17,9 @@ Imports:
     reshape2,
     coin,
     wordspace,
-    methods
+    methods,
+    boot,
+    broom
 License: GPL-2
 Encoding: UTF-8
 LazyData: true
