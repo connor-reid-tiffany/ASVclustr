@@ -408,22 +408,30 @@ compute_pd <- function(asv_list, sam_var, time_var, independent_var = NULL, batc
 #' independent covariate. the first string in the vector will be used as the reference group that all
 #' other groups will be compared to.
 #' @importFrom stats glm
+#' @importFrom stats binomial
+#' @importFrom stats Gamma
 #' @importFrom stats plogis
+#' @importFrom utils tail
 #' @importFrom broom tidy
 #' @importFrom tibble tibble
 #' @importFrom boot boot
 #' @importFrom boot boot.ci
 #' @importFrom dplyr group_by
 #' @importFrom dplyr summarise
+#' @importFrom dplyr tally
 #' @importFrom magrittr %>%
 #' @return a data.frame
 #' @export
-#' @examples
-#'
-#' asv_list <- compute_pd(asv_list = asv_list, sam_var = "Sample", time_var = "Timepoint", independent_var = "Treatment")
-#' con_intervals <- compare_pd(asv_list = asv_list, calc_CI = TRUE, boot_k = 400, groups = c("Dirty-A", "Clean-A"))
 
 compare_pd <- function(asv_list, batch=FALSE, calc_CI=FALSE, boot_k=NULL,groups=NULL){
+
+  #set variables to NULL to fix the stupid CRAN note
+  non_zero <- NULL
+  independent_var <- NULL
+  model <- NULL
+  cluster <- NULL
+  value <- NULL
+  OTU <- NULL
 
   #set object
   seqmat_integrals_list <- asv_list$seqmat_integrals
@@ -667,40 +675,37 @@ compare_pd <- function(asv_list, batch=FALSE, calc_CI=FALSE, boot_k=NULL,groups=
   mod_list <- Map(f = cbind, mod_list, names_list)
   mod_list <- lapply(mod_list, function(x){ x$model_term <- paste(x$model, "_", x$term) ; x})
 
+
   #compute an adjusted p value for FDR for each model p value
   #compute padj for binomial model
-  mod_list_binomial <- lapply(mod_list, function(x) subset(x, model=="binomial"))
-  mod_list_binomial <- do.call("rbind", mod_list_binomial)
-  mod_list_binomial <- split(mod_list_binomial, f = as.factor(mod_list_binomial$term))
-  mod_list_binomial <- lapply(mod_list_binomial, function(x) {x$padj <- p.adjust(p = x$p.value, method = "BH"); x})
-  mod_list_binomial <- do.call("rbind", mod_list_binomial)
-  mod_list_binomial$term <- rownames(mod_list_binomial)
-  #compute padj for gamma model
-  mod_list_gamma <- lapply(mod_list, function(x) subset(x, model=="gamma"))
-  mod_list_gamma <- do.call("rbind", mod_list_gamma)
-  mod_list_gamma <- split(mod_list_gamma, f = as.factor(mod_list_gamma$term))
-  mod_list_gamma <- lapply(mod_list_gamma, function(x) {x$padj <- p.adjust(p = x$p.value, method = "BH"); x})
-  mod_list_gamma <- do.call("rbind", mod_list_gamma)
-  mod_list_gamma$term <- rownames(mod_list_gamma)
-  #compute padj for hurdle
-  mod_list_hurdle <- lapply(mod_list, function(x) subset(x, model=="hurdle"))
-  mod_list_hurdle <- do.call("rbind", mod_list_hurdle)
-  mod_list_hurdle <- split(mod_list_hurdle, f = as.factor(mod_list_hurdle$term))
-  mod_list_hurdle <- lapply(mod_list_hurdle, function(x) {x$padj <- p.adjust(p = x$p.value, method = "BH"); x})
-  mod_list_hurdle <- do.call("rbind", mod_list_hurdle)
-  mod_list_hurdle$term <- rownames(mod_list_hurdle)
-  #row bind each of the padj dataframes into a single dataframe
-  mod_list_padj <- rbind(mod_list_binomial, mod_list_gamma, mod_list_hurdle)
+  mod_list_padj <- do.call("rbind", mod_list)
+
+  mod_list_padj <- mod_list_padj %>%
+
+    group_by(term,model) %>%
+
+    mutate(padj = p.adjust(p.value, method = "BH"))
+
+  #remove special characters from term strings and then make a new column to join mod_list_padj to mod_list
   mod_list_padj$term <- gsub(mod_list_padj$term, pattern = "\\..*", replacement = "")
   mod_list_padj$model_term <- paste(mod_list_padj$model, "_", mod_list_padj$term)
   #remove uneccessary columns and then split into a list by either cluster or OTU
   mod_list_padj <- mod_list_padj[,c("model", name_variable, "padj", "term", "model_term")]
-  mod_list_padj <- split(mod_list_padj, f = as.factor(mod_list_padj[,name_variable]))
+
+  if (name_variable == "cluster"){
+
+    mod_list_padj <- split(mod_list_padj, f = as.factor(mod_list_padj$cluster))
+
+  } else if (name_variable == "OTU"){
+
+    mod_list_padj <- split(mod_list_padj, f = as.factor(mod_list_padj$OTU))
+
+  }
+
   #remove cluster/OTU column and then match the adjusted p values to the corresponding data.frames in mod_list
   mod_list_padj <- lapply(mod_list_padj, function(x) x[!names(x) %in% c(name_variable, "term", "model")])
   mod_list <- Map(left_join, mod_list, mod_list_padj, by = "model_term")
 
-  return(mod_list)
   #compute a confidence interval using non-parametric bootstrapping
   if (calc_CI == TRUE){
     #extract model term names to use in CI_list
@@ -749,19 +754,15 @@ compare_pd <- function(asv_list, batch=FALSE, calc_CI=FALSE, boot_k=NULL,groups=
 
   #clean up the term column using regex to remove words and parenthesis
   mod_df$term <- gsub(mod_df$term, pattern = "\\(", replacement = "")
-
   mod_df$term <- gsub(mod_df$term, pattern = "\\)", replacement = "")
-
   mod_df$term <- gsub(mod_df$term, pattern = "independent_var", replacement = "")
-
   mod_df$name_variable <- mod_df[,name_variable]
-
   #create term + name_variable column to left join means to mod_df
   mod_df$term_namevar <- paste0(mod_df$term, "", mod_df$name_variable)
 
   #calculate base mean, term means, and fold changes where appropriate
   seqmat_integrals <- do.call("rbind", seqmat_integrals_list)
-
+  #calculate cluster or ASV means
   if (name_variable == "cluster"){
 
     intercept_mean <- seqmat_integrals %>%
@@ -780,9 +781,11 @@ compare_pd <- function(asv_list, batch=FALSE, calc_CI=FALSE, boot_k=NULL,groups=
 
   }
 
+  #create column to join intercept means to mod_df
   intercept_mean$term <- "Intercept"
   colnames(intercept_mean)[colnames(intercept_mean) == name_variable] <- "name_variable"
   intercept_mean$term_namevar <- paste0(intercept_mean$term, "", intercept_mean$name_variable)
+
   #join intercept mean to mod_df
   mod_df$intercept_means <- intercept_mean$group_means[match(mod_df$term_namevar, intercept_mean$term_namevar)]
 
@@ -791,9 +794,8 @@ compare_pd <- function(asv_list, batch=FALSE, calc_CI=FALSE, boot_k=NULL,groups=
     #set base mean variable by taking the first element of the groups vector
     base_group <- groups[1]
     comparison_group <- groups[-1]
-
     mod_df$base_group <- base_group
-
+    #calculate cluster or ASV means
     if (name_variable == "cluster"){
 
       group_means <- seqmat_integrals %>%
@@ -812,22 +814,24 @@ compare_pd <- function(asv_list, batch=FALSE, calc_CI=FALSE, boot_k=NULL,groups=
 
     }
 
+    #create base_means column to join to mod_df to calculate mean difference
     base_means <- subset(group_means, independent_var==base_group)
     colnames(base_means)[colnames(base_means) == name_variable] <- "name_variable"
+    #create group_means column to join to mod_df to calculate mean difference
     group_means <- subset(group_means, independent_var %in% comparison_group)
-
     colnames(group_means)[colnames(group_means) == name_variable] <- "name_variable"
     group_means$term_namevar <- paste0(group_means$independent_var, "", group_means$name_variable)
-
-
+    #join mean values to mod_df
     mod_df$base_mean <- base_means$group_means[match(mod_df$name_variable, base_means$name_variable)]
     mod_df$term_means <- group_means$group_means[match(mod_df$term_namevar, group_means$term_namevar)]
     mod_df$term_means[is.na(mod_df$term_means)] <- mod_df$intercept_means[!is.na(mod_df$intercept_means)]
-
+    #remove intercept means column as this information is now in the term_means column
     mod_df <- mod_df[, !names(mod_df) %in% "intercept_means"]
   }
-
+  #remove columns that were created for joining data
   mod_df <- mod_df[,!names(mod_df) %in% c("term_namevar", "name_variable")]
+  #calculate mean difference of term means from base mean
+  mod_df$mean_difference <- mod_df$term_means - mod_df$base_mean
 
   return(mod_df)
 

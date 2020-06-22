@@ -135,6 +135,12 @@ cluster_phytree <- function(asv_list, tree, cladogram=FALSE, layout="circular"){
 #'
 taxa_by_cluster <- function(melted_asv_list, tax_level, time_var, sam_var, plot_boxplot = FALSE){
 
+  #set variables to NULL to fix stupid CRAN note
+  timepoint <- NULL
+  cluster <- NULL
+  Abundance <- NULL
+  taxa_cluster_sum <- NULL
+
   #rename variables of interest
   colnames(melted_asv_list)[colnames(melted_asv_list) == tax_level] <- "tax_level"
   colnames(melted_asv_list)[colnames(melted_asv_list) == sam_var] <- "sample"

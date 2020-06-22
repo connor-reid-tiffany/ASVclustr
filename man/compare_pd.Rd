@@ -34,8 +34,3 @@ a data.frame
 Compare cluster orASV integral means using a binomial-gamma hurdle model on median of ratios normalized
 sequencing counts
 }
-\examples{
-
-asv_list <- compute_pd(asv_list = asv_list, sam_var = "Sample", time_var = "Timepoint", independent_var = "Treatment")
-con_intervals <- compare_pd(asv_list = asv_list, calc_CI = TRUE, boot_k = 400, groups = c("Dirty-A", "Clean-A"))
-}

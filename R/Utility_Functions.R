@@ -10,7 +10,7 @@
 #' @param meta A data frame with metadata for your sequencing samples. Rownames should be equal and in identical order to the seqmat.
 #' It also msut contain the following: a column of non unique sample identifiers (i.e. mouse number, plant number, etc),
 #' a column of time points as numeric, a column of independent variable(s) or grouped independent variables is optional.
-#'
+#' @importFrom stats median
 #' @return A list with seqmat, taxmat, meta. additionally adds the class ASVclustr
 #'
 #' @examples
@@ -18,6 +18,7 @@
 #'
 #' @export
 make_asv_list <- function(seqmat, taxmat, meta){
+
 
   if (!is.matrix(seqmat) && !is.numeric(seqmat)){
     stop("seqmat must be a numeric matrix")
@@ -135,9 +136,6 @@ melt_asv_list <- function(asv_list, ratio=FALSE, rescale=FALSE, sam_var, time_va
   #create column for joining
   taxa <- as.data.frame(asv_list$taxmat)
   taxa$OTU <- rownames(taxa)
-
-  #create h_clust object
-  h_clust <- asv_list$h_clust
 
   #left join to meta, then to taxa, then to cluster
   asv_melt <- left_join(seqmat_melt, meta, "SampleID")
@@ -397,6 +395,9 @@ subset_ASVs <- function(asv_list, sam_var, sam_threshold, abund_threshold = NULL
 
   }
 
+  seqmat_norm <- as.data.frame(asv_list$seqmat_norm)
+  seqmat_norm <- seqmat_norm[, names(seqmat_norm) %in% keep_OTUs]
+  asv_list$seqmat_norm <- as.matrix(seqmat_norm)
   asv_list$seqmat <- as.matrix(seqmat)
 
   return(asv_list)

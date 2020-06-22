@@ -19,7 +19,8 @@ Imports:
     wordspace,
     methods,
     boot,
-    broom
+    broom,
+    tibble
 License: GPL-2
 Encoding: UTF-8
 LazyData: true
